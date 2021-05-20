@@ -195,7 +195,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         Writes the parameters to a file in users home directory
         '''
         # Write all parameters to a file
-        with open(os.path.expanduser(filepath), 'a') as f:
+        with open(os.path.expanduser(filepath), 'w') as f:
             for param in sorted(self.param_list):
                 f.write(param+'\n')
         return
