@@ -140,8 +140,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         '''
         Determine the full path of the output file
         '''
-        # Use the target name in the filename
-        filename = rootname.replace("/","").replace("https:","").replace("http:","").replace(":","_")
+        # Use the target domain in the filename
+        filename = urlparse(rootname).hostname
         filename = filename + '_getAllParams.txt'
         
         # If on Windows then change the file path to the users Documents directory
