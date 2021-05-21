@@ -161,32 +161,32 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         '''
         Displays the parameter list to whatever Burp is configured for stdout.
         '''
-        print '#'
-        print '# Get All Params by /XNL-h4ck3r '
-        print '# The list of paramaters will be written to your home directory. '
-        print '# File path is: ' + filepath
-        print '#'
+        print('#')
+        print('# Get All Params by /XNL-h4ck3r ')
+        print('# The list of paramaters will be written to your home directory. ')
+        print('# File path is: ' + filepath)
+        print('#')
         
         # List all the parameters, one per line
-        print ''
-        print '# Below is the list of all the unique parameters'
-        print ''
+        print('')
+        print('# Below is the list of all the unique parameters')
+        print(' ')
         for param in sorted(self.param_list):
-            print param
+            print(param)
         
         # List the paramaters in a concatenated string with unique values
-        print ' '
-        print ' '
-        print '# Or cut and paste the parameter string below to pass all parameters with value "XNLV?" where ? is a unique number.'
-        print '# Then search for reflection of the word "XNLV"'
-        print ' '
+        print(' ')
+        print(' ')
+        print('# Or cut and paste the parameter string below to pass all parameters with value "XNLV?" where ? is a unique number.')
+        print('# Then search for reflection of the word "XNLV"')
+        print(' ')
         index = 1
         allParams = ''
         for param in sorted(self.param_list):
             allParams = allParams + param + '=XNLV' + str(index) + '&'
             index += 1
             
-        print allParams
+        print(allParams)
           
         return
         
