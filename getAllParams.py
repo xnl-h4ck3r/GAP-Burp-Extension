@@ -172,7 +172,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         print('# Below is the list of all the unique parameters')
         print(' ')
         for param in sorted(self.param_list):
-            print(param)
+            print(param.decode(encoding='UTF-8',errors='ignore'))
         
         # List the paramaters in a concatenated string with unique values
         print(' ')
@@ -183,7 +183,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         index = 1
         allParams = ''
         for param in sorted(self.param_list):
-            allParams = allParams + param + '=XNLV' + str(index) + '&'
+            allParams = allParams + param.decode(encoding='UTF-8',errors='ignore') + '=XNLV' + str(index) + '&'
             index += 1
             
         print(allParams)
