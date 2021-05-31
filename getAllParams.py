@@ -67,7 +67,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.param_list = set(COMMON_PARAMS)
         callbacks.setExtensionName("Get All Params")
         callbacks.registerContextMenuFactory(self)
-        #sys.stdout = callbacks.getStdout()
         self.out = callbacks.getStdout
 
         # define all settings
@@ -94,14 +93,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.outParamList.setLineWrap(True)
         self.outParamList.setEditable(False)
         self.scroll_outParamList = JScrollPane(self.outParamList)
-        #self.scroll_outParamList.setPreferredSize(Dimension(20,150))
         self.scroll_outParamList.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
         self.lblQueryString = JLabel("The latest generated query string of all parameters:")
         self.outQueryString = JTextArea("")
         self.outQueryString.setLineWrap(True)
         self.outQueryString.setEditable(False)
         self.scroll_outQueryString = JScrollPane(self.outQueryString)
-        #self.scroll_outQueryString.setPreferredSize(Dimension(150,20))
         self.scroll_outQueryString.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
 
         self.btnSave = JButton("Save Options", actionPerformed=self.saveConfig)
@@ -192,6 +189,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             'paramXml': self.cbParamXml.isSelected(),
             'paramXmklAttr': self.cbParamXmlAttr.isSelected(),
             'queryStringVal': self.inQueryStringVal.text,
+            'showQueryString': self.cbShowQueryString.isSelected()
             }
         self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
 
@@ -209,8 +207,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.cbParamXml.setSelected(config['paramXml'])
                 self.cbParamXmlAttr.setSelected(config['paramXmklAttr'])
                 self.inQueryStringVal.text = config['queryStringVal'] 
+                self.cbShowQueryString.setSelected(config['showQueryString'])
             except:
-                print("Oops, something went wrong!\nConfig contained: " + storedConfig)
+                pass
     
     def resetConfig(self, e=None):
         self.cbSaveFile.setSelected(True)
@@ -288,7 +287,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         parameters = request.getParameters()[1:]
        
         for param in parameters:
-        
             # If the paramater is of the type we want to log then get them
             if (param.getType() == PARAM_URL and self.cbParamUrl.isSelected()) or (param.getType() == PARAM_BODY and self.cbParamBody.isSelected()) or (param.getType() == PARAM_MULTIPART_ATTR and self.cbParamMultiPart.isSelected()) or (param.getType() == PARAM_JSON and self.cbParamJson.isSelected()) or (param.getType() == PARAM_COOKIE and self.cbParamCookie.isSelected()) or (param.getType() == PARAM_XML and self.cbParamXml.isSelected()) or (param.getType() == PARAM_XML_ATTR and self.cbParamXmlAttr.isSelected()):
                 self.param_list.add(param.getName())
