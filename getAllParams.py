@@ -170,22 +170,22 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         # List all the parameters, one per line
         print('')
         print('# Below is the list of all the unique parameters')
-        print(' ')
-        for param in sorted(self.param_list):
-            print(param.decode(encoding='UTF-8',errors='ignore'))
-        
-        # List the paramaters in a concatenated string with unique values
-        print(' ')
-        print(' ')
-        print('# Or cut and paste the parameter string below to pass all parameters with value "XNLV?" where ? is a unique number.')
-        print('# Then search for reflection of the word "XNLV"')
-        print(' ')
         index = 1
         allParams = ''
         for param in sorted(self.param_list):
-            allParams = allParams + param.decode(encoding='UTF-8',errors='ignore') + '=XNLV' + str(index) + '&'
+            try:
+                print(param)
+                # Build a list of paramaters in a concatenated string with unique values
+                allParams = allParams + param + '=XNLV' + str(index) + '&'
+            except: 
+                pass   
             index += 1
-            
+        
+        # List the paramaters in a concatenated string with unique values
+        print('')
+        print('# Or cut and paste the parameter string below to pass all parameters with value "XNLV?" where ? is a unique number.')
+        print('# Then search for reflection of the word "XNLV"')
+        print('')
         print(allParams)
           
         return
@@ -197,5 +197,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         # Write all parameters to a file
         with open(os.path.expanduser(filepath), 'w') as f:
             for param in sorted(self.param_list):
-                f.write(param+'\n')
+                try:
+                    f.write(param +'\n')
+                except:
+                    pass
         return
