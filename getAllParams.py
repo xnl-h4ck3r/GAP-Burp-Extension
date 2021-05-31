@@ -23,12 +23,12 @@ The following types of paramters with in the Burp IParamater interface will be r
 PARAM_URL (0) - Used to indicate a parameter within the URL query string.
 PARAM_BODY (1) - Used to indicate a parameter within the message body.
 PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
+PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
 
 The following type of parameters in Burp IParameter interface will NOT be returned:
 PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
 PARAM_XML (3) - Used to indicate an item of data within an XML structure.
 PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
-PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
 
 '''
 
@@ -131,7 +131,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         for param in parameters:
         
             # If the paramater is of the type we want to log then get them
-            if param.getType() == PARAM_URL or param.getType() == PARAM_BODY or param.getType() == PARAM_MULTIPART_ATTR:
+            if param.getType() == PARAM_URL or param.getType() == PARAM_BODY or param.getType() == PARAM_MULTIPART_ATTR or param.getType() == PARAM_JSON:
                 self.param_list.add(param.getName())
             
         return
@@ -170,6 +170,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         # List all the parameters, one per line
         print('')
         print('# Below is the list of all the unique parameters')
+        print('')
         index = 1
         allParams = ''
         for param in sorted(self.param_list):
@@ -177,11 +178,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
                 print(param)
                 # Build a list of paramaters in a concatenated string with unique values
                 allParams = allParams + param + '=XNLV' + str(index) + '&'
+                index += 1
             except: 
                 pass   
-            index += 1
         
         # List the paramaters in a concatenated string with unique values
+        print('')
         print('')
         print('# Or cut and paste the parameter string below to pass all parameters with value "XNLV?" where ? is a unique number.')
         print('# Then search for reflection of the word "XNLV"')
