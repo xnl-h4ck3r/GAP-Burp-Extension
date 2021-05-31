@@ -13,22 +13,21 @@ Although it has a different function, the code was based on the why-cewler.py ex
 Usage:
 1. Point Burp Suite to Jython in the Extender > Options tab.
 2. Install this extension manually in the Extender > Extensions tab.
-3. Select an option for extension output (File, Console or UI).
+3. Change any options on the "Get All Params" tab.
 4. Right-click on any element in the Target tab's hierarchical sitemap.
 5. Select the Extensions > Get All Params context menu item.
+6. Go to the "Get All Params" tab to see the results.
 
-It is advised you keep Output as "Show in UI"
-A file of all paramaters will be created in the users home directory (or Documnets for Windows) with the name "{TARGET}_getAllParams.txt"
-The extension Output tab will show a combined string of all parameters and a test value of XNLV? (where ? is a unique number)
+If the option to save output to a file is selected then a file of all paramaters will be created in the users home directory (or Documents for Windows) 
+with the name "{TARGET}_getAllParams.txt"
+The extension Output tab will show a combined string of all parameters and a test value (default of of XNLV? - where ? is a unique number)
 This string can be used in requests and then Burp history searched for any relection of XNLV
 
-The following types of paramters with in the Burp IParamater interface will be retunred:
-- PARAM_URL (0) - Used to indicate a parameter within the URL query string.
-- PARAM_BODY (1) - Used to indicate a parameter within the message body.
-- PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
-
-The following type of parameters in Burp IParameter interface will NOT be returned:
-- PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
-- PARAM_XML (3) - Used to indicate an item of data within an XML structure.
-- PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
-- PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
+The following types of paramters with in the Burp IParamater interface can be retunred (depending on selected options):
+PARAM_URL (0) - Used to indicate a parameter within the URL query string.
+PARAM_BODY (1) - Used to indicate a parameter within the message body.
+PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
+PARAM_XML (3) - Used to indicate an item of data within an XML structure.
+PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
+PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
+PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.

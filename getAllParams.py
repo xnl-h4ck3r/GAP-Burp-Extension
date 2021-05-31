@@ -10,39 +10,36 @@ Although it has a different function, the code was based on the why-cewler.py ex
 Usage:
 1. Point Burp Suite to Jython in the Extender > Options tab.
 2. Install this extension manually in the Extender > Extensions tab.
-3. Select an option for extension output (File, Console or UI).
+3. Change any options on the "Get All Params" tab.
 4. Right-click on any element in the Target tab's hierarchical sitemap.
 5. Select the Extensions > Get All Params context menu item.
+6. Go to the "Get All Params" tab to see the results.
 
-It is advised you keep Output as "Show in UI"
-A file of all paramaters will be created in the users home directory (or Documnets for Windows) with the name "{TARGET}_getAllParams.txt"
-The extension Output tab will show a combined string of all parameters and a test value of XNLV? (where ? is a unique number)
+If the option to save output to a file is selected then a file of all paramaters will be created in the users home directory (or Documents for Windows) 
+with the name "{TARGET}_getAllParams.txt"
+The extension Output tab will show a combined string of all parameters and a test value (default of of XNLV? - where ? is a unique number)
 This string can be used in requests and then Burp history searched for any relection of XNLV
 
-The following types of paramters with in the Burp IParamater interface will be retunred:
+The following types of paramters with in the Burp IParamater interface can be retunred (depending on selected options):
 PARAM_URL (0) - Used to indicate a parameter within the URL query string.
 PARAM_BODY (1) - Used to indicate a parameter within the message body.
-PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
-PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
-
-The following type of parameters in Burp IParameter interface will NOT be returned:
 PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
 PARAM_XML (3) - Used to indicate an item of data within an XML structure.
 PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
+PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
+PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
 
 '''
 
-from burp import IBurpExtender
-from burp import IContextMenuFactory
-from javax.swing import JMenuItem
-from java.util import ArrayList, List
-from HTMLParser import HTMLParser
+from burp import (IBurpExtender, IContextMenuFactory, ITab)
+from javax.swing import (JMenuItem, GroupLayout, JPanel, JCheckBox, JTextField, JLabel, JButton, JScrollPane, JTextArea, ScrollPaneConstants)
+from java.util import ArrayList
 from datetime import datetime
 from urlparse import urlparse 
-import sys
 import os
 import platform
 import re
+import pickle
 
 COMMON_PARAMS = ['page', 'callback', 'next', 'prev', 'previous', 'ref', 'go', 'return', 'goto', 'r_url', 'returnurl', 'returnuri', 'location', 'locationurl', 'retunr_url', 'goTo', 'r_Url', 'r_URL', 'returnUrl', 'returnURL', 'returnUri', 'retunrURI', 'locationUrl', 'locationURL', 'return_Url', 'return_URL', 'site', 'debug', 'active', 'admin', 'id' ]
 
@@ -54,7 +51,7 @@ PARAM_XML_ATTR = 4
 PARAM_MULTIPART_ATTR = 5
 PARAM_JSON = 6
 
-class BurpExtender(IBurpExtender, IContextMenuFactory):
+class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
     '''
     BurpExtender Class as per Reference API.
     '''
@@ -70,8 +67,169 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         self.param_list = set(COMMON_PARAMS)
         callbacks.setExtensionName("Get All Params")
         callbacks.registerContextMenuFactory(self)
-        sys.stdout = callbacks.getStdout()
-        return
+        #sys.stdout = callbacks.getStdout()
+        self.out = callbacks.getStdout
+
+        # define all settings
+        self.lblWhichParams = JLabel("Select which paramater types you want to retrieve:")
+        self.cbParamUrl = self.defineCheckBox("Query string params")
+        self.cbParamBody = self.defineCheckBox("Message body params")
+        self.cbParamMultiPart = self.defineCheckBox("Param attribute within a multi-part message body")
+        self.cbParamJson = self.defineCheckBox("JSON params")
+        self.cbParamCookie = self.defineCheckBox("Cookie names", False)
+        self.cbParamXml = self.defineCheckBox("Items of data within an XML structure", False)
+        self.cbParamXmlAttr = self.defineCheckBox("Value of tag attributes within XML structure", False)
+        
+        self.lblOutputOptions = JLabel("Output options:")
+        self.cbSaveFile = self.defineCheckBox("Save file to home directory (or Documents folder on Windows)?")
+        self.cbShowQueryString = self.defineCheckBox("Build concatenated query string?")
+        self.lblQueryStringVal = JLabel("Concatenated query string param value")
+        self.inQueryStringVal = JTextField(8)
+        self.grpValue = JPanel()
+        self.grpValue.add(self.lblQueryStringVal)
+        self.grpValue.add(self.inQueryStringVal)
+
+        self.lblParamList = JLabel("The latest list of params found:")
+        self.outParamList = JTextArea("")
+        self.outParamList.setLineWrap(True)
+        self.outParamList.setEditable(False)
+        self.scroll_outParamList = JScrollPane(self.outParamList)
+        #self.scroll_outParamList.setPreferredSize(Dimension(20,150))
+        self.scroll_outParamList.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
+        self.lblQueryString = JLabel("The latest generated query string of all parameters:")
+        self.outQueryString = JTextArea("")
+        self.outQueryString.setLineWrap(True)
+        self.outQueryString.setEditable(False)
+        self.scroll_outQueryString = JScrollPane(self.outQueryString)
+        #self.scroll_outQueryString.setPreferredSize(Dimension(150,20))
+        self.scroll_outQueryString.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
+
+        self.btnSave = JButton("Save Options", actionPerformed=self.saveConfig)
+        self.btnRestore = JButton("Restore Defaults", actionPerformed=self.resetConfig)
+        self.grpConfig = JPanel()
+        self.grpConfig.add(self.btnSave)
+        self.grpConfig.add(self.btnRestore)
+        self.restoreConfig()
+
+        # definition of config tab
+        self.tab = JPanel()
+        layout = GroupLayout(self.tab)
+        self.tab.setLayout(layout)
+        layout.setAutoCreateGaps(True)
+        layout.setAutoCreateContainerGaps(True)
+     
+
+        layout.setHorizontalGroup(
+            layout.createSequentialGroup()
+                .addGroup(layout.createParallelGroup()
+                    .addComponent(self.lblWhichParams)
+                    .addComponent(self.cbParamUrl)
+                    .addComponent(self.cbParamBody)
+                    .addComponent(self.cbParamMultiPart)
+                    .addComponent(self.cbParamJson)
+                    .addComponent(self.cbParamCookie)
+                    .addComponent(self.cbParamXml)
+                    .addComponent(self.cbParamXmlAttr)
+                    .addComponent(self.lblOutputOptions)
+                    .addComponent(self.cbSaveFile)
+                    .addComponent(self.cbShowQueryString)
+                    .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(self.grpConfig, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(self.lblQueryString)
+                    .addComponent(self.scroll_outQueryString)
+                )
+                .addGroup(layout.createParallelGroup()
+                    .addComponent(self.lblParamList)
+                    .addComponent(self.scroll_outParamList)
+                )
+            )
+        
+        layout.setVerticalGroup(
+           layout.createParallelGroup()
+            .addGroup(layout.createParallelGroup()
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(self.lblWhichParams)
+                    .addComponent(self.cbParamUrl)
+                    .addComponent(self.cbParamBody)
+                    .addComponent(self.cbParamMultiPart)
+                    .addComponent(self.cbParamJson)
+                    .addComponent(self.cbParamCookie)
+                    .addComponent(self.cbParamXml)
+                    .addComponent(self.cbParamXmlAttr)
+                    .addComponent(self.lblOutputOptions)
+                    .addComponent(self.cbSaveFile)
+                    .addComponent(self.cbShowQueryString)
+                    .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(self.grpConfig, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(self.lblQueryString)
+                    .addComponent(self.scroll_outQueryString)
+                )
+                .addGroup(layout.createSequentialGroup()
+                    .addComponent(self.lblParamList)
+                    .addComponent(self.scroll_outParamList)
+                )
+            )
+        )
+        #layout.linkSize(SwingConstants.HORIZONTAL, [self.lblQueryStringVal, self.inQueryStringVal])
+
+        callbacks.addSuiteTab(self)
+
+      
+    def defineCheckBox(self, caption, selected=True, enabled=True):
+        checkBox = JCheckBox(caption)
+        checkBox.setSelected(selected)
+        checkBox.setEnabled(enabled)
+        return checkBox
+    
+    def saveConfig(self, e=None):
+        config = {
+            'saveFile': self.cbSaveFile.isSelected(),
+            'paramUrl': self.cbParamUrl.isSelected(),
+            'paramBody': self.cbParamBody.isSelected(),
+            'paramMultiPart': self.cbParamMultiPart.isSelected(),
+            'paramJson': self.cbParamJson.isSelected(),
+            'paramCookie': self.cbParamCookie.isSelected(),
+            'paramXml': self.cbParamXml.isSelected(),
+            'paramXmklAttr': self.cbParamXmlAttr.isSelected(),
+            'queryStringVal': self.inQueryStringVal.text,
+            }
+        self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
+
+    def restoreConfig(self, e=None):
+        storedConfig = self._callbacks.loadExtensionSetting("config")
+        if storedConfig != None:
+            try:
+                config = pickle.loads(storedConfig)
+                self.cbSaveFile.setSelected(config['saveFile'])
+                self.cbParamUrl.setSelected(config['paramUrl'])
+                self.cbParamBody.setSelected(config['paramBody'])
+                self.cbParamMultiPart.setSelected(config['paramMultiPart'])
+                self.cbParamJson.setSelected(config['paramJson'])
+                self.cbParamCookie.setSelected(config['paramCookie'])
+                self.cbParamXml.setSelected(config['paramXml'])
+                self.cbParamXmlAttr.setSelected(config['paramXmklAttr'])
+                self.inQueryStringVal.text = config['queryStringVal'] 
+            except:
+                print("Oops, something went wrong!\nConfig contained: " + storedConfig)
+    
+    def resetConfig(self, e=None):
+        self.cbSaveFile.setSelected(True)
+        self.cbParamUrl.setSelected(True)
+        self.cbParamBody.setSelected(True)
+        self.cbParamMultiPart.setSelected(True)
+        self.cbParamJson.setSelected(False)
+        self.cbParamCookie.setSelected(False)
+        self.cbParamXml.setSelected(False)
+        self.cbParamXmlAttr.setSelected(False)
+        self.cbShowQueryString.setSelected(True)
+        self.inQueryStringVal.text = 'XNLV' 
+        self.saveConfig
+
+    def getTabCaption(self):
+        return("Get All Params")
+
+    def getUiComponent(self):
+        return self.tab
 
     def createMenuItems(self, context):
         '''
@@ -116,8 +274,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         # Display the parameters wherever the extension was configured     
         self.display_params(filepath)
         
-        # Write the parameters to a file
-        self.writefile_params(filepath)
+        # Write the parameters to a file if required
+        if self.cbSaveFile.isSelected():
+            self.writefile_params(filepath)
         
         return
     
@@ -131,9 +290,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         for param in parameters:
         
             # If the paramater is of the type we want to log then get them
-            if param.getType() == PARAM_URL or param.getType() == PARAM_BODY or param.getType() == PARAM_MULTIPART_ATTR or param.getType() == PARAM_JSON:
+            if (param.getType() == PARAM_URL and self.cbParamUrl.isSelected()) or (param.getType() == PARAM_BODY and self.cbParamBody.isSelected()) or (param.getType() == PARAM_MULTIPART_ATTR and self.cbParamMultiPart.isSelected()) or (param.getType() == PARAM_JSON and self.cbParamJson.isSelected()) or (param.getType() == PARAM_COOKIE and self.cbParamCookie.isSelected()) or (param.getType() == PARAM_XML and self.cbParamXml.isSelected()) or (param.getType() == PARAM_XML_ATTR and self.cbParamXmlAttr.isSelected()):
                 self.param_list.add(param.getName())
-            
+
         return
 
     def get_filepath(self, rootname):
@@ -163,8 +322,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         '''
         print('#')
         print('# Get All Params by /XNL-h4ck3r ')
-        print('# The list of paramaters will be written to your home directory. ')
-        print('# File path is: ' + filepath)
+        if self.cbSaveFile.isSelected():
+            print('# The list of paramaters will be written to your home directory. ')
+            print('# File path is: ' + filepath)
         print('#')
         
         # List all the parameters, one per line
@@ -173,22 +333,28 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         print('')
         index = 1
         allParams = ''
+        self.outParamList.text = ''
         for param in sorted(self.param_list):
             try:
-                print(param)
-                # Build a list of paramaters in a concatenated string with unique values
-                allParams = allParams + param + '=XNLV' + str(index) + '&'
-                index += 1
+                if len(param) > 0:
+                    print(param)
+                    self.outParamList.text = self.outParamList.text + param + '\n'
+                    # Build a list of paramaters in a concatenated string with unique values
+                    allParams = allParams + param + '=' + self.inQueryStringVal.text + str(index) + '&'
+                    index += 1
             except: 
-                pass   
+                print("Opps, an error has occurred!")   
         
-        # List the paramaters in a concatenated string with unique values
-        print('')
-        print('')
-        print('# Or cut and paste the parameter string below to pass all parameters with value "XNLV?" where ? is a unique number.')
-        print('# Then search for reflection of the word "XNLV"')
-        print('')
-        print(allParams)
+        # List the paramaters in a concatenated string with unique values if required
+        self.outQueryString.text = ''
+        if self.cbShowQueryString.isSelected():
+            print('')
+            print('')
+            print('# Or cut and paste the parameter string below to pass all parameters with value "' + self.inQueryStringVal.text + '?" where ? is a unique number.')
+            print('# Then search for reflection of the word "' + self.inQueryStringVal.text + '"')
+            print('')
+            print(allParams)
+            self.outQueryString.text = allParams
           
         return
         
@@ -202,5 +368,5 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
                 try:
                     f.write(param +'\n')
                 except:
-                    pass
+                    print("Opps, an error has occurred!")   
         return
