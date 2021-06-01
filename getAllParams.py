@@ -284,7 +284,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Get all the parameters and add them to the param_list set.
         '''
         request = self._helpers.analyzeRequest(http_request)
-        parameters = request.getParameters()[1:]
+        parameters = request.getParameters()[0:]
        
         for param in parameters:
             # If the paramater is of the type we want to log then get them
