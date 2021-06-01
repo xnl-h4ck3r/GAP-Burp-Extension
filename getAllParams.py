@@ -40,6 +40,7 @@ import os
 import platform
 import re
 import pickle
+import threading
 
 COMMON_PARAMS = ['page', 'callback', 'next', 'prev', 'previous', 'ref', 'go', 'return', 'goto', 'r_url', 'returnurl', 'returnuri', 'location', 'locationurl', 'retunr_url', 'goTo', 'r_Url', 'r_URL', 'returnUrl', 'returnURL', 'returnUri', 'retunrURI', 'locationUrl', 'locationURL', 'return_Url', 'return_URL', 'site', 'debug', 'active', 'admin', 'id' ]
 
@@ -80,7 +81,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamXmlAttr = self.defineCheckBox("Value of tag attributes within XML structure", False)
         
         self.lblOutputOptions = JLabel("Output options:")
-        self.cbIncludeCommonParams = self.defineCheckBox("Include the list of common params in list (e.g. used for redirects)?")
+        self.cbIncludeCommonParams = self.defineCheckBox("Include the list of common params in list (e.g. used for redirects)?", True)
         self.cbSaveFile = self.defineCheckBox("Save file to home directory (or Documents folder on Windows)?")
         self.cbShowQueryString = self.defineCheckBox("Build concatenated query string?")
         self.lblQueryStringVal = JLabel("Concatenated query string param value")
@@ -248,6 +249,20 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             return menu_list
 
     def menu_action(self, event):
+        
+        # before starting the search, update the text boxes
+        self.outParamList.text = 'SEARCHING...'
+        if self.cbShowQueryString.isSelected() == True:
+            self.outQueryString.text = 'SEARCHING...'
+    
+        # Run everything in a thread so it doesn't freeze Burp while it gets everythng
+        t = threading.Thread(target=self.do_everything, args=[])
+        t.daemon = True
+        t.start()
+                
+        return
+    
+    def do_everything (self):
         '''
         Obtains the selected messages from the interface. Filters the sitmap for all messages containing
         URLs within the selected messages' hierarchy. If so, the message is analyzed to create a parameter list.
@@ -289,9 +304,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Write the parameters to a file if required
         if self.cbSaveFile.isSelected():
             self.writefile_params(filepath)
-        
-        return
-    
+
     def get_params(self, url, http_request):
         '''
         Get all the parameters and add them to the param_list set.
@@ -355,7 +368,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     index += 1
             except: 
                 print("Opps, an error has occurred!")   
-        
+         
         # List the paramaters in a concatenated string with unique values if required
         self.outQueryString.text = ''
         if self.cbShowQueryString.isSelected():
@@ -366,18 +379,25 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             print('')
             print(allParams)
             self.outQueryString.text = allParams
-          
+
+        # If no parameters were found, write that in the text box
+        if self.outParamList.text == '':
+            self.outParamList.text = 'NO PARAMETERS FOUND'
+            if self.cbShowQueryString.isSelected() == True:
+                self.outQueryString.text = 'NO PARAMETERS FOUND'
+                  
         return
         
     def writefile_params(self, filepath):
         '''
         Writes the parameters to a file in users home directory
         '''
-        # Write all parameters to a file
-        with open(os.path.expanduser(filepath), 'w') as f:
-            for param in sorted(self.param_list):
-                try:
-                    f.write(param +'\n')
-                except:
-                    print("Opps, an error has occurred!")   
-        return
+        # Write all parameters to a file if any exist
+        if self.outParamList.text != 'NO PARAMETERS FOUND':
+            with open(os.path.expanduser(filepath), 'w') as f:
+                for param in sorted(self.param_list):
+                    try:
+                        f.write(param +'\n')
+                    except:
+                        print("Opps, an error has occurred!")   
+            return
