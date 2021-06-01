@@ -80,6 +80,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamXmlAttr = self.defineCheckBox("Value of tag attributes within XML structure", False)
         
         self.lblOutputOptions = JLabel("Output options:")
+        self.cbIncludeCommonParams = self.defineCheckBox("Include the list of common params in list (e.g. used for redirects)?")
         self.cbSaveFile = self.defineCheckBox("Save file to home directory (or Documents folder on Windows)?")
         self.cbShowQueryString = self.defineCheckBox("Build concatenated query string?")
         self.lblQueryStringVal = JLabel("Concatenated query string param value")
@@ -128,6 +129,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.cbParamXml)
                     .addComponent(self.cbParamXmlAttr)
                     .addComponent(self.lblOutputOptions)
+                    .addComponent(self.cbIncludeCommonParams)
                     .addComponent(self.cbSaveFile)
                     .addComponent(self.cbShowQueryString)
                     .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
@@ -154,6 +156,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.cbParamXml)
                     .addComponent(self.cbParamXmlAttr)
                     .addComponent(self.lblOutputOptions)
+                    .addComponent(self.cbIncludeCommonParams)
                     .addComponent(self.cbSaveFile)
                     .addComponent(self.cbShowQueryString)
                     .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
@@ -189,7 +192,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             'paramXml': self.cbParamXml.isSelected(),
             'paramXmklAttr': self.cbParamXmlAttr.isSelected(),
             'queryStringVal': self.inQueryStringVal.text,
-            'showQueryString': self.cbShowQueryString.isSelected()
+            'showQueryString': self.cbShowQueryString.isSelected(),
+            'includeCommonParams': self.cbIncludeCommonParams.isSelected()
             }
         self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
 
@@ -207,7 +211,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.cbParamXml.setSelected(config['paramXml'])
                 self.cbParamXmlAttr.setSelected(config['paramXmklAttr'])
                 self.inQueryStringVal.text = config['queryStringVal'] 
-                self.cbShowQueryString.setSelected(config['showQueryString'])
+                self.cbShowQueryString.setSelected(config['showQueryString']),
+                self.cbIncludeCommonParams.setSelected(config['includeCommonParams'])
             except:
                 pass
     
@@ -222,6 +227,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamXmlAttr.setSelected(False)
         self.cbShowQueryString.setSelected(True)
         self.inQueryStringVal.text = 'XNLV' 
+        self.cbIncludeCommonParams.setSelected(True)
         self.saveConfig
 
     def getTabCaption(self):
@@ -246,6 +252,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Obtains the selected messages from the interface. Filters the sitmap for all messages containing
         URLs within the selected messages' hierarchy. If so, the message is analyzed to create a parameter list.
         '''
+        # Initialize
+        self.roots.clear()
+        if self.cbIncludeCommonParams.isSelected() == True:
+            self.param_list = set(COMMON_PARAMS)
+        else:
+            self.param_list = set()
+
         # get all first-level selected messages and store the URLs as roots to filter the sitemap
         http_messages = self.context.getSelectedMessages()
         for http_message in http_messages:
