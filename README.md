@@ -24,10 +24,13 @@ The extension Output tab will show a combined string of all parameters and a tes
 This string can be used in requests and then Burp history searched for any relection of XNLV
 
 The following types of paramters with in the Burp IParamater interface can be retunred (depending on selected options):
-PARAM_URL (0) - Used to indicate a parameter within the URL query string.
-PARAM_BODY (1) - Used to indicate a parameter within the message body.
-PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
-PARAM_XML (3) - Used to indicate an item of data within an XML structure.
-PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
-PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
-PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
+- PARAM_URL (0) - Used to indicate a parameter within the URL query string.
+- PARAM_BODY (1) - Used to indicate a parameter within the message body.
+- PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
+- PARAM_XML (3) - Used to indicate an item of data within an XML structure.
+- PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
+- PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
+- PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
+
+Thanks to a contribution by Pichik, you can now also choose to select JSON and XML paramaters from the Response too.
+In addition to this, if you are using this to generate a wordlist, you can add the words from URL paths to the results.
