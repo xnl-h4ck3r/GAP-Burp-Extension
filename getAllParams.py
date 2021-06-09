@@ -20,17 +20,21 @@ with the name "{TARGET}_getAllParams.txt"
 The extension Output tab will show a combined string of all parameters and a test value (default of of XNLV? - where ? is a unique number)
 This string can be used in requests and then Burp history searched for any relection of XNLV
 
-The following types of paramters with in the Burp IParamater interface can be retunred (depending on selected options) from the Request:
-PARAM_URL (0) - Used to indicate a parameter within the URL query string.
-PARAM_BODY (1) - Used to indicate a parameter within the message body.
-PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
-PARAM_XML (3) - Used to indicate an item of data within an XML structure.
-PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
-PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
-PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
+REQUEST PARAMETERS:
+The following types of paramters within the Burp IParamater interface can be retunred (depending on selected options) from the Request:
+- PARAM_URL (0) - Used to indicate a parameter within the URL query string.
+- PARAM_BODY (1) - Used to indicate a parameter within the message body.
+- PARAM_COOKIE (2) - Used to indicate an HTTP cookie.
+- PARAM_XML (3) - Used to indicate an item of data within an XML structure.
+- PARAM_XML_ATTR (4) - Used to indicate the value of a tag attribute within an XML structure.
+- PARAM_MULTIPART_ATTR (5) - Used to indicate the value of a parameter attribute within a multi-part message body (such as the name of an uploaded file).
+- PARAM_JSON (6) - Used to indicate an item of data within a JSON structure.
 
-Thanks to a contribution by Pichik, you can now also choose to select JSON and XML paramaters from the Response too.
-In addition to this, if you are using this to generate a wordlist, you can add the words from URL paths to the results.
+RESPONSE PARAMETERS:
+- JSON parameters (Thanks to contribution by Pichik)
+- XML paramaters (Thanks to contribution by Pichik)
+- Words from URL paths, if you are using this to generate a wordlist (Thanks to contribution by Pichik)
+- Name and Id attribute from HTML Input fields
 
 '''
 
@@ -39,6 +43,7 @@ from javax.swing import (JMenuItem, GroupLayout, JPanel, JCheckBox, JTextField, 
 from java.util import ArrayList
 from datetime import datetime
 from urlparse import urlparse 
+from java.io import PrintWriter
 import os
 import platform
 import re
@@ -66,12 +71,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         '''
         self._callbacks = callbacks
         self._helpers = callbacks.getHelpers()
+        self._stderr = PrintWriter(callbacks.getStderr(), True)
         self.context = None
         self.roots = set()
         self.param_list = set(COMMON_PARAMS)
         callbacks.setExtensionName("Get All Params")
         callbacks.registerContextMenuFactory(self)
-        self.out = callbacks.getStdout
 
         # define all settings
         self.lblWhichParams = JLabel("Select which paramater types you want to retrieve:")
@@ -86,6 +91,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.lblResponseParams = JLabel("RESPONSE PARAMETERS")
         self.cbParamJSONResponse = self.defineCheckBox("JSON params", False)
         self.cbParamXMLResponse = self.defineCheckBox("Value of tag attributes within XML structure", False)
+        self.cbParamInputField = self.defineCheckBox("Name and Id attributes of HTML Input fields", False)
         
         self.lblOutputOptions = JLabel("Output options:")
         self.cbIncludeCommonParams = self.defineCheckBox("Include the list of common params in list (e.g. used for redirects)?", True)
@@ -106,6 +112,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.scroll_outParamList.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
         self.lblQueryString = JLabel("The latest generated query string of all parameters:")
         self.outQueryString = JTextArea("")
+        self.outQueryString.setColumns(50)
         self.outQueryString.setLineWrap(True)
         self.outQueryString.setEditable(False)
         self.scroll_outQueryString = JScrollPane(self.outQueryString)
@@ -130,17 +137,24 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             layout.createSequentialGroup()
                 .addGroup(layout.createParallelGroup()
                     .addComponent(self.lblWhichParams)
-                    .addComponent(self.lblRequestParams)
-                    .addComponent(self.cbParamUrl)
-                    .addComponent(self.cbParamBody)
-                    .addComponent(self.cbParamMultiPart)
-                    .addComponent(self.cbParamJson)
-                    .addComponent(self.cbParamCookie)
-                    .addComponent(self.cbParamXml)
-                    .addComponent(self.cbParamXmlAttr)
-                    .addComponent(self.lblResponseParams)
-                    .addComponent(self.cbParamJSONResponse)
-                    .addComponent(self.cbParamXMLResponse)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup()
+                            .addComponent(self.lblRequestParams)
+                            .addComponent(self.cbParamUrl)
+                            .addComponent(self.cbParamBody)
+                            .addComponent(self.cbParamMultiPart)
+                            .addComponent(self.cbParamJson)
+                            .addComponent(self.cbParamCookie)
+                            .addComponent(self.cbParamXml)
+                            .addComponent(self.cbParamXmlAttr)
+                        )
+                        .addGroup(layout.createParallelGroup()
+                            .addComponent(self.lblResponseParams)
+                            .addComponent(self.cbParamJSONResponse)
+                            .addComponent(self.cbParamXMLResponse)
+                            .addComponent(self.cbParamInputField)
+                        )
+                    )
                     .addComponent(self.lblOutputOptions)
                     .addComponent(self.cbIncludePathWords)
                     .addComponent(self.cbIncludeCommonParams)
@@ -149,7 +163,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addComponent(self.grpConfig, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addComponent(self.lblQueryString)
-                    .addComponent(self.scroll_outQueryString)
+                    .addComponent(self.scroll_outQueryString, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                 )
                 .addGroup(layout.createParallelGroup()
                     .addComponent(self.lblParamList)
@@ -162,17 +176,24 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             .addGroup(layout.createParallelGroup()
                 .addGroup(layout.createSequentialGroup()
                     .addComponent(self.lblWhichParams)
-                    .addComponent(self.lblRequestParams)
-                    .addComponent(self.cbParamUrl)
-                    .addComponent(self.cbParamBody)
-                    .addComponent(self.cbParamMultiPart)
-                    .addComponent(self.cbParamJson)
-                    .addComponent(self.cbParamCookie)
-                    .addComponent(self.cbParamXml)
-                    .addComponent(self.cbParamXmlAttr)
-                    .addComponent(self.lblResponseParams)
-                    .addComponent(self.cbParamJSONResponse)
-                    .addComponent(self.cbParamXMLResponse)
+                    .addGroup(layout.createParallelGroup()
+                        .addGroup(layout.createSequentialGroup()
+                            .addComponent(self.lblRequestParams)
+                            .addComponent(self.cbParamUrl)
+                            .addComponent(self.cbParamBody)
+                            .addComponent(self.cbParamMultiPart)
+                            .addComponent(self.cbParamJson)
+                            .addComponent(self.cbParamCookie)
+                            .addComponent(self.cbParamXml)
+                            .addComponent(self.cbParamXmlAttr)
+                        )
+                        .addGroup(layout.createSequentialGroup()
+                            .addComponent(self.lblResponseParams)
+                            .addComponent(self.cbParamJSONResponse)
+                            .addComponent(self.cbParamXMLResponse)
+                            .addComponent(self.cbParamInputField)
+                        )
+                    )
                     .addComponent(self.lblOutputOptions)
                     .addComponent(self.cbIncludePathWords)
                     .addComponent(self.cbIncludeCommonParams)
@@ -215,7 +236,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             'includeCommonParams': self.cbIncludeCommonParams.isSelected(),
             'includePathWords': self.cbIncludePathWords.isSelected(),
             'paramJsonResponse': self.cbParamJSONResponse.isSelected(),
-            'paramXmlResponse': self.cbParamXMLResponse.isSelected()
+            'paramXmlResponse': self.cbParamXMLResponse.isSelected(),
+            'paramInputField': self.cbParamInputField.isSelected()
             }
         self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
 
@@ -237,8 +259,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.cbIncludeCommonParams.setSelected(config['includeCommonParams']),
                 self.cbIncludePathWords.setSelected(config['includePathWords']),
                 self.cbParamJSONResponse.setSelected(config['paramJsonResponse']),
-                self.cbParamXMLResponse.setSelected(config['paramXmlResponse'])
-            except:
+                self.cbParamXMLResponse.setSelected(config['paramXmlResponse']),
+                self.cbParamInputField.setSelected(config['paramInputField'])
+            except Exception as e:
+                self._stderr.println(e)  
                 pass
     
     def resetConfig(self, e=None):
@@ -248,7 +272,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamMultiPart.setSelected(True)
         self.cbParamJson.setSelected(False)
         self.cbParamJSONResponse.setSelected(False)
-        self.cbParamJSONResponse.setSelected(False)
+        self.cbParamXMLResponse.setSelected(False)
+        self.cbParamInputField.setSelected(False)
         self.cbParamCookie.setSelected(False)
         self.cbParamXml.setSelected(False)
         self.cbParamXmlAttr.setSelected(False)
@@ -327,7 +352,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.get_path_words(responseurl)
 
                 # Get the response parameters if requested
-                if self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected():
+                if self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected():
                     http_response = http_message.getResponse()
                     if http_response:
                         self.get_response_params(http_response)
@@ -403,8 +428,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     # Build a list of paramaters in a concatenated string with unique values
                     allParams = allParams + param + '=' + self.inQueryStringVal.text + str(index) + '&'
                     index += 1
-            except: 
-                print("Oops, an error has occurred!")   
+            except Exception as e: 
+                self._stderr.println(e)   
          
         # List the paramaters in a concatenated string with unique values if required
         self.outQueryString.text = ''
@@ -435,35 +460,59 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 for param in sorted(self.param_list):
                     try:
                         f.write(param +'\n')
-                    except:
-                        print("Oops, an error has occurred!")   
+                    except Exception as e:
+                        self._stderr.println(e)     
             return
 
     def get_response_params(self, http_response):
         '''
         Get XML and JSON responses, extract keys and add them to the param_list
         Original contributer: Pichik
+
+        In addition it will extract name and id from <input> fields in HTML
         '''
         response = self._helpers.analyzeResponse(http_response)
         body_offset = response.getBodyOffset()
-
+        
         if response.getStatedMimeType() == 'JSON':
             if self.cbParamJSONResponse.isSelected():
-                response_string = self._helpers.bytesToString(http_response)
-                body = response_string[body_offset:]
-                # Get only keys from json (everything between douible quotes:)
-                json_keys = (re.findall('"([a-zA-Z0-9_\.-]*?)":', body))
-                for key in json_keys:
-                    self.param_list.add(key)
+                try:
+                    response_string = self._helpers.bytesToString(http_response)
+                    body = response_string[body_offset:]
+                    # Get only keys from json (everything between douible quotes:)
+                    json_keys = (re.findall('"([a-zA-Z0-9_\.-]*?)":', body))
+                    for key in json_keys:
+                        self.param_list.add(key)
+                except Exception as e:
+                    self._stderr.println(e)  
 
         elif response.getStatedMimeType() == 'XML':
             if self.cbParamXMLResponse.isSelected():
-                response_string = self._helpers.bytesToString(http_response)
-                body = response_string[body_offset:]
-                xml_keys = (re.findall('<([a-zA-Z0-9_\.-]*?)>', body))
-                for key in xml_keys:
-                    self.param_list.add(key)
-        
+                try:
+                    response_string = self._helpers.bytesToString(http_response)
+                    body = response_string[body_offset:]
+                    xml_keys = (re.findall('<([a-zA-Z0-9_\.-]*?)>', body))
+                    for key in xml_keys:
+                        self.param_list.add(key)
+                except Exception as e:
+                    self._stderr.println(e)  
+
+        elif response.getStatedMimeType() == 'HTML':
+            if self.cbParamInputField.isSelected():
+                try:
+                    response_string = self._helpers.bytesToString(http_response)
+                    body = response_string[body_offset:]
+                    html_keys = (re.findall('<input(.*?)/>', body))
+                    for key in html_keys:
+                        input_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
+                        if input_name is not None and input_name.group() != "":
+                            self.param_list.add(input_name.group())
+                        input_id = re.search(r"(?<=id=(\"|'))(.*?)(?=(\"|'))", key)
+                        if input_id is not None and input_id.group() != "":
+                            self.param_list.add(input_id.group())
+                except Exception as e:
+                    self._stderr.println(e)  
+
         return
 
     def get_path_words(self, url):
