@@ -327,7 +327,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.get_path_words(responseurl)
 
                 # Get the response parameters if requested
-                if self.cbParamJSONResponse.isSelected():
+                if self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected():
                     http_response = http_message.getResponse()
                     if http_response:
                         self.get_response_params(http_response)
