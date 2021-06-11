@@ -502,7 +502,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 try:
                     response_string = self._helpers.bytesToString(http_response)
                     body = response_string[body_offset:]
-                    html_keys = (re.findall('<input(.*?)/>', body))
+                    html_keys = (re.findall('<input(.*?)>', body))
                     for key in html_keys:
                         input_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
                         if input_name is not None and input_name.group() != "":
