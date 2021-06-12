@@ -503,7 +503,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if self.cbParamJSONResponse.isSelected():
                 try:
                     # Get only keys from json (everything between double quotes:)
-                    json_keys = (re.findall('"([a-zA-Z0-9_\.-$]*?)":', body))
+                    json_keys = (re.findall('"([a-zA-Z0-9$_\.-]*?)":', body))
                     for key in json_keys:
                         self.param_list.add(key)
                 except Exception as e:
@@ -513,7 +513,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if self.cbParamXMLResponse.isSelected():
                 try:
                     # Get XML attributes
-                    xml_keys = (re.findall('<([a-zA-Z0-9_\.$-]*?)>', body))
+                    xml_keys = (re.findall('<([a-zA-Z0-9$_\.-]*?)>', body))
                     for key in xml_keys:
                         self.param_list.add(key)
                 except Exception as e:
