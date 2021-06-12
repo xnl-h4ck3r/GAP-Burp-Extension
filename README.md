@@ -38,3 +38,4 @@ RESPONSE PARAMETERS:
 - XML paramaters (Thanks to contribution by Pichik)
 - Words from URL paths, if you are using this to generate a wordlist (Thanks to contribution by Pichik)
 - Name and Id attribute from HTML Input fields
+- Meta tag Name attribute

@@ -35,6 +35,8 @@ RESPONSE PARAMETERS:
 - XML paramaters (Thanks to contribution by Pichik)
 - Words from URL paths, if you are using this to generate a wordlist (Thanks to contribution by Pichik)
 - Name and Id attribute from HTML Input fields
+- Javascript variables and constants in HTML or Script
+- Meta tag Name attribute
 
 '''
 
@@ -44,6 +46,8 @@ from java.util import ArrayList
 from datetime import datetime
 from urlparse import urlparse 
 from java.io import PrintWriter
+from java.awt import Color
+from java.awt import Font
 import os
 import platform
 import re
@@ -79,7 +83,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         callbacks.registerContextMenuFactory(self)
 
         # define all settings
-        self.lblWhichParams = JLabel("Select which paramater types you want to retrieve:")
+        self.lblWhichParams = JLabel("Select param types you want to retrieve:")
+        self.lblWhichParams.setFont(Font('Tahoma', Font.BOLD, 14))
+        self.lblWhichParams.setForeground(Color(235,136,0))
         self.lblRequestParams = JLabel("REQUEST PARAMETERS")
         self.cbParamUrl = self.defineCheckBox("Query string params")
         self.cbParamBody = self.defineCheckBox("Message body params")
@@ -92,8 +98,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamJSONResponse = self.defineCheckBox("JSON params", False)
         self.cbParamXMLResponse = self.defineCheckBox("Value of tag attributes within XML structure", False)
         self.cbParamInputField = self.defineCheckBox("Name and Id attributes of HTML Input fields", False)
-        
+        self.cbParamJSVars = self.defineCheckBox("Javascript variables and constants", False)
+        self.cbParamMetaName =self.defineCheckBox("Name attribute of Meta tags", False)
+
         self.lblOutputOptions = JLabel("Output options:")
+        self.lblOutputOptions.setFont(Font('Tahoma', Font.BOLD, 14))
+        self.lblOutputOptions.setForeground(Color(235,136,0))
         self.cbIncludeCommonParams = self.defineCheckBox("Include the list of common params in list (e.g. used for redirects)?", True)
         self.cbIncludePathWords = self.defineCheckBox("Include URL path words in parameter list?", False)
         self.cbSaveFile = self.defineCheckBox("Save file to home directory (or Documents folder on Windows)?")
@@ -153,6 +163,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             .addComponent(self.cbParamJSONResponse)
                             .addComponent(self.cbParamXMLResponse)
                             .addComponent(self.cbParamInputField)
+                            .addComponent(self.cbParamJSVars)
+                            .addComponent(self.cbParamMetaName)
                         )
                     )
                     .addComponent(self.lblOutputOptions)
@@ -192,6 +204,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             .addComponent(self.cbParamJSONResponse)
                             .addComponent(self.cbParamXMLResponse)
                             .addComponent(self.cbParamInputField)
+                            .addComponent(self.cbParamJSVars)
+                            .addComponent(self.cbParamMetaName)
                         )
                     )
                     .addComponent(self.lblOutputOptions)
@@ -214,7 +228,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         callbacks.addSuiteTab(self)
 
-      
     def defineCheckBox(self, caption, selected=True, enabled=True):
         checkBox = JCheckBox(caption)
         checkBox.setSelected(selected)
@@ -237,7 +250,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             'includePathWords': self.cbIncludePathWords.isSelected(),
             'paramJsonResponse': self.cbParamJSONResponse.isSelected(),
             'paramXmlResponse': self.cbParamXMLResponse.isSelected(),
-            'paramInputField': self.cbParamInputField.isSelected()
+            'paramInputField': self.cbParamInputField.isSelected(),
+            'paramJSVars': self.cbParamJSVars.isSelected(),
+            'paramMetaName': self.cbParamMetaName.isSelected()
             }
         self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
 
@@ -260,7 +275,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.cbIncludePathWords.setSelected(config['includePathWords']),
                 self.cbParamJSONResponse.setSelected(config['paramJsonResponse']),
                 self.cbParamXMLResponse.setSelected(config['paramXmlResponse']),
-                self.cbParamInputField.setSelected(config['paramInputField'])
+                self.cbParamInputField.setSelected(config['paramInputField']),
+                self.cbParamJSVars.setSelected(config['paramJSVars']),
+                self.cbParamMetaName.setSelected(config['paramMetaName'])
             except Exception as e:
                 self._stderr.println(e)  
                 pass
@@ -281,6 +298,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.inQueryStringVal.text = 'XNLV' 
         self.cbIncludeCommonParams.setSelected(True)
         self.cbIncludePathWords.setSelected(False)
+        self.cbParamJSVars.setSelected(False)
+        self.cbParamMetaName.setSelected(False)
         self.saveConfig
 
     def getTabCaption(self):
@@ -335,27 +354,31 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # e.g. the root will be in the format protocol://domain:port/
         # get all sitemap entries associated with the selected messages and scrape them for parameters
         for http_message in self._callbacks.getSiteMap(None):
+                        
             url = http_message.getUrl().toString()
+
             for root in self.roots:
+
                 # will scrape the same URL multiple times if the site map has stored multiple instances
                 # the site map stores multiple instances if it detects differences, so this is desirable
                 rooturl = urlparse(root)
                 responseurl = urlparse(url)
+
                 if rooturl.hostname == responseurl.hostname:
                     # only scrape if there is a request to scrape
                     http_request = http_message.getRequest()
                     if http_request:
                         self.get_params(url, http_request)
                 
-                # Get path words if requested
-                if self.cbIncludePathWords.isSelected():
-                    self.get_path_words(responseurl)
+                    # Get path words if requested
+                    if self.cbIncludePathWords.isSelected():
+                        self.get_path_words(responseurl)
 
-                # Get the response parameters if requested
-                if self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected():
-                    http_response = http_message.getResponse()
-                    if http_response:
-                        self.get_response_params(http_response)
+                    # Get the response parameters if requested
+                    if self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected() or self.cbParamJSVars.isSelected() or self.cbParamMetaName.isSelected():
+                        http_response = http_message.getResponse()
+                        if http_response:
+                            self.get_response_params(http_response)
 
         # Get the full path of the file
         filepath = self.get_filepath(root)
@@ -473,14 +496,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         '''
         response = self._helpers.analyzeResponse(http_response)
         body_offset = response.getBodyOffset()
-        
+        response_string = self._helpers.bytesToString(http_response)
+        body = response_string[body_offset:]
+
         if response.getStatedMimeType() == 'JSON':
             if self.cbParamJSONResponse.isSelected():
                 try:
-                    response_string = self._helpers.bytesToString(http_response)
-                    body = response_string[body_offset:]
-                    # Get only keys from json (everything between douible quotes:)
-                    json_keys = (re.findall('"([a-zA-Z0-9_\.-]*?)":', body))
+                    # Get only keys from json (everything between double quotes:)
+                    json_keys = (re.findall('"([a-zA-Z0-9_\.-$]*?)":', body))
                     for key in json_keys:
                         self.param_list.add(key)
                 except Exception as e:
@@ -489,9 +512,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         elif response.getStatedMimeType() == 'XML':
             if self.cbParamXMLResponse.isSelected():
                 try:
-                    response_string = self._helpers.bytesToString(http_response)
-                    body = response_string[body_offset:]
-                    xml_keys = (re.findall('<([a-zA-Z0-9_\.-]*?)>', body))
+                    # Get XML attributes
+                    xml_keys = (re.findall('<([a-zA-Z0-9_\.$-]*?)>', body))
                     for key in xml_keys:
                         self.param_list.add(key)
                 except Exception as e:
@@ -499,9 +521,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         elif response.getStatedMimeType() == 'HTML':
             if self.cbParamInputField.isSelected():
+                # Get Input field name and id attributes
                 try:
-                    response_string = self._helpers.bytesToString(http_response)
-                    body = response_string[body_offset:]
                     html_keys = (re.findall('<input(.*?)>', body))
                     for key in html_keys:
                         input_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
@@ -513,6 +534,54 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 except Exception as e:
                     self._stderr.println(e)  
 
+            if self.cbParamJSVars.isSelected():
+                # Get inline javascript variables
+                try:
+                    js_keys = re.finditer(r"(?<=(var|let)\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    for key in js_keys:
+                        if key is not None and key.group() != "":
+                            self.param_list.add(key.group())
+                except Exception as e:
+                    self._stderr.println(e)  
+                # Get inline javascript constants
+                try:
+                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    for key in js_keys:
+                        if key is not None and key.group() != "":
+                            self.param_list.add(key.group())
+                except Exception as e:
+                    self._stderr.println(e) 
+
+            if self.cbParamMetaName.isSelected():
+                # Get meta tag name attribute
+                try:
+                    meta_keys = (re.findall('<meta(.*?)>', body))
+                    for key in meta_keys:
+                        meta_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
+                        if meta_name is not None and meta_name.group() != "":
+                            self.param_list.add(meta_name.group())
+                except Exception as e:
+                    self._stderr.println(e) 
+
+        
+        elif response.getStatedMimeType() == 'script':
+            if self.cbParamJSVars.isSelected():
+                # Get javascript variables
+                try:
+                    js_keys = re.finditer(r"(?<=(var|let)\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    for key in js_keys:
+                        if key is not None and key.group() != "":
+                            self.param_list.add(key.group())
+                except Exception as e:
+                    self._stderr.println(e)  
+                # Get javascript constants
+                try:
+                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    for key in js_keys:
+                        if key is not None and key.group() != "":
+                            self.param_list.add(key.group())
+                except Exception as e:
+                    self._stderr.println(e) 
         return
 
     def get_path_words(self, url):
