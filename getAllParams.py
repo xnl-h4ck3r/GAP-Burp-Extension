@@ -128,12 +128,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.scroll_outQueryString = JScrollPane(self.outQueryString)
         self.scroll_outQueryString.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
 
+        self.lblCount = JLabel("")
+        self.lblCount.setForeground(Color(235,136,0))
+
         self.btnSave = JButton("Save Options", actionPerformed=self.saveConfig)
         self.btnRestore = JButton("Restore Defaults", actionPerformed=self.resetConfig)
         self.grpConfig = JPanel()
         self.grpConfig.add(self.btnSave)
         self.grpConfig.add(self.btnRestore)
-        self.restoreConfig()
 
         # definition of config tab
         self.tab = JPanel()
@@ -142,6 +144,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         layout.setAutoCreateGaps(True)
         layout.setAutoCreateContainerGaps(True)
      
+        # Restore config settings
+        self.restoreConfig()
+
+        # If the query string param value doesn't exist, set it to the default
+        if self.inQueryStringVal.text == "":
+            self.inQueryStringVal.text = "XNLV"
 
         layout.setHorizontalGroup(
             layout.createSequentialGroup()
@@ -178,7 +186,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.scroll_outQueryString, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                 )
                 .addGroup(layout.createParallelGroup()
-                    .addComponent(self.lblParamList)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(self.lblParamList)
+                        .addComponent(self.lblCount)
+                    )
                     .addComponent(self.scroll_outParamList)
                 )
             )
@@ -219,12 +230,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.scroll_outQueryString)
                 )
                 .addGroup(layout.createSequentialGroup()
-                    .addComponent(self.lblParamList)
+                    .addGroup(layout.createParallelGroup()
+                        .addComponent(self.lblParamList)
+                        .addComponent(self.lblCount)
+                    )
                     .addComponent(self.scroll_outParamList)
                 )
             )
         )
-        #layout.linkSize(SwingConstants.HORIZONTAL, [self.lblQueryStringVal, self.inQueryStringVal])
 
         callbacks.addSuiteTab(self)
 
@@ -322,6 +335,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
     def menu_action(self, event):
         
         # before starting the search, update the text boxes
+        self.lblCount.text = '   SEARCHING...'
         self.outParamList.text = 'SEARCHING...'
         if self.cbShowQueryString.isSelected() == True:
             self.outQueryString.text = 'SEARCHING...'
@@ -400,7 +414,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         for param in parameters:
             # If the paramater is of the type we want to log then get them
             if (param.getType() == PARAM_URL and self.cbParamUrl.isSelected()) or (param.getType() == PARAM_BODY and self.cbParamBody.isSelected()) or (param.getType() == PARAM_MULTIPART_ATTR and self.cbParamMultiPart.isSelected()) or (param.getType() == PARAM_JSON and self.cbParamJson.isSelected()) or (param.getType() == PARAM_COOKIE and self.cbParamCookie.isSelected()) or (param.getType() == PARAM_XML and self.cbParamXml.isSelected()) or (param.getType() == PARAM_XML_ATTR and self.cbParamXmlAttr.isSelected()):
-                self.param_list.add(param.getName())
+                self.param_list.add(param.getName().strip())
 
         return
 
@@ -443,6 +457,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         index = 1
         allParams = ''
         self.outParamList.text = ''
+        self.lblCount.text = '   UPDATING...   PLEASE WAIT...'
+        if self.cbShowQueryString.isSelected() == True:
+            self.outQueryString.text = 'UPDATING...'
         for param in sorted(self.param_list):
             try:
                 if len(param) > 0:
@@ -453,6 +470,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     index += 1
             except Exception as e: 
                 self._stderr.println(e)   
+        self.lblCount.text = '   ' + str(index) + ' POTENTIAL PARAMETERS FOUND'
          
         # List the paramaters in a concatenated string with unique values if required
         self.outQueryString.text = ''
@@ -505,7 +523,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     # Get only keys from json (everything between double quotes:)
                     json_keys = (re.findall('"([a-zA-Z0-9$_\.-]*?)":', body))
                     for key in json_keys:
-                        self.param_list.add(key)
+                        self.param_list.add(key.strip())
                 except Exception as e:
                     self._stderr.println(e)  
 
@@ -515,7 +533,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     # Get XML attributes
                     xml_keys = (re.findall('<([a-zA-Z0-9$_\.-]*?)>', body))
                     for key in xml_keys:
-                        self.param_list.add(key)
+                        self.param_list.add(key.strip())
                 except Exception as e:
                     self._stderr.println(e)  
 
@@ -527,28 +545,36 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     for key in html_keys:
                         input_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
                         if input_name is not None and input_name.group() != "":
-                            self.param_list.add(input_name.group())
+                            self.param_list.add(input_name.group().strip())
                         input_id = re.search(r"(?<=id=(\"|'))(.*?)(?=(\"|'))", key)
                         if input_id is not None and input_id.group() != "":
-                            self.param_list.add(input_id.group())
+                            self.param_list.add(input_id.group().strip())
                 except Exception as e:
                     self._stderr.println(e)  
 
             if self.cbParamJSVars.isSelected():
-                # Get inline javascript variables
+                # Get inline javascript variables defined with "let"
                 try:
-                    js_keys = re.finditer(r"(?<=(var|let)\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    js_keys = re.finditer(r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))", body)
                     for key in js_keys:
                         if key is not None and key.group() != "":
-                            self.param_list.add(key.group())
+                            self.param_list.add(key.group().strip())
+                except Exception as e:
+                    self._stderr.println(e)  
+                # Get inline javascript variables defined with "var"
+                try:
+                    js_keys = re.finditer(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
+                    for key in js_keys:
+                        if key is not None and key.group() != "":
+                            self.param_list.add(key.group().strip())
                 except Exception as e:
                     self._stderr.println(e)  
                 # Get inline javascript constants
                 try:
-                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
                     for key in js_keys:
                         if key is not None and key.group() != "":
-                            self.param_list.add(key.group())
+                            self.param_list.add(key.group().strip())
                 except Exception as e:
                     self._stderr.println(e) 
 
@@ -559,29 +585,29 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     for key in meta_keys:
                         meta_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
                         if meta_name is not None and meta_name.group() != "":
-                            self.param_list.add(meta_name.group())
+                            self.param_list.add(meta_name.group().strip())
                 except Exception as e:
                     self._stderr.println(e) 
-
         
         elif response.getStatedMimeType() == 'script':
             if self.cbParamJSVars.isSelected():
                 # Get javascript variables
                 try:
-                    js_keys = re.finditer(r"(?<=(var|let)\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    js_keys = re.finditer(r"(?<=(var|let)\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
                     for key in js_keys:
                         if key is not None and key.group() != "":
-                            self.param_list.add(key.group())
+                            self.param_list.add(key.group().strip())
                 except Exception as e:
                     self._stderr.println(e)  
                 # Get javascript constants
                 try:
-                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|;|\n))", body)
+                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
                     for key in js_keys:
                         if key is not None and key.group() != "":
-                            self.param_list.add(key.group())
+                            self.param_list.add(key.group().strip())
                 except Exception as e:
                     self._stderr.println(e) 
+
         return
 
     def get_path_words(self, url):
@@ -591,8 +617,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         '''
         # Split the URL on /
         words = re.compile(r'[\:/?=\-&]+',re.UNICODE).split(url.path)
-        # If the word doesn't have a . then add it to the parameter list
+        # Add the word to the parameter list, unless it has a . in it or is a number
         for word in words:
-            if "." not in word:
-                self.param_list.add(word)
+            if ("." not in word) and (not word.isnumeric()):
+                self.param_list.add(word.strip())
         return
