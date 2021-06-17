@@ -1,5 +1,5 @@
 '''
-Get All Params by /XNL-h4ck3r (@xnl_h4ck3r) - Version 1.0
+Get All Params by /XNL-h4ck3r (@xnl_h4ck3r) - Version 1.1
 
 This is a python extension that runs in Portswigger's Burp Suite and parses an already crawled sitemap to build a custom parameter list. 
 It also adds common parameter names that could be useful in the final list used for fuzzing.
@@ -35,7 +35,7 @@ RESPONSE PARAMETERS:
 - XML paramaters (Thanks to contribution by Pichik)
 - Words from URL paths, if you are using this to generate a wordlist (Thanks to contribution by Pichik)
 - Name and Id attribute from HTML Input fields
-- Javascript variables and constants in HTML or Script
+- Javascript variables and constants in ALL types of reponses (JS vars could be in the html, script and even JSON response within a .js.map file)
 - Meta tag Name attribute
 
 '''
@@ -385,6 +385,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         t = threading.Thread(target=self.do_everything, args=[])
         t.daemon = True
         t.start() 
+
         return
     
     def do_everything (self):
@@ -530,7 +531,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if self.outParamList.text == '':
             self.outParamList.text = 'NO PARAMETERS FOUND'
             if self.cbShowQueryString.isSelected() == True:
-                self.outQueryString.text = 'NO PARAMETERS FOUND'                  
+                self.outQueryString.text = 'NO PARAMETERS FOUND'        
+
         return
         
     def writefile_params(self, filepath):
@@ -544,22 +546,53 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     try:
                         f.write(param +'\n')
                     except Exception as e:
-                        self._stderr.println(e)     
+                        self._stderr.println(e)   
+
             return
 
     def get_response_params(self, http_response):
         '''
-        Get XML and JSON responses, extract keys and add them to the param_list
-        Original contributer: Pichik
-
-        In addition it will extract name and id from <input> fields in HTML
+        Get various types of parameters from different type sof response
         '''
         response = self._helpers.analyzeResponse(http_response)
         body_offset = response.getBodyOffset()
         response_string = self._helpers.bytesToString(http_response)
         body = response_string[body_offset:]
 
+        # Get Javascript variables regardless of the mime type
+        # Javascript variables could be in the html, script and even JSON response within a .js.map file for example
+        if self.cbParamJSVars.isSelected():            
+
+            # Get inline javascript variables defined with "let"
+            try:
+                js_keys = re.finditer(r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))", body)
+                for key in js_keys:
+                    if key is not None and key.group() != "":
+                        self.param_list.add(key.group().strip())
+            except Exception as e:
+                self._stderr.println(e)  
+
+            # Get inline javascript variables defined with "var"
+            try:
+                js_keys = re.finditer(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
+                for key in js_keys:
+                    if key is not None and key.group() != "":
+                        self.param_list.add(key.group().strip())
+            except Exception as e:
+                self._stderr.println(e)  
+
+            # Get inline javascript constants
+            try:
+                js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
+                for key in js_keys:
+                    if key is not None and key.group() != "":
+                        self.param_list.add(key.group().strip())
+            except Exception as e:
+                self._stderr.println(e) 
+        
+        # If mime type is JSON then get the JSON attrbutes
         if response.getStatedMimeType() == 'JSON':
+
             if self.cbParamJSONResponse.isSelected():
                 try:
                     # Get only keys from json (everything between double quotes:)
@@ -568,8 +601,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         self.param_list.add(key.strip())
                 except Exception as e:
                     self._stderr.println(e)  
-
+            
+        # If the mime type is XML then get the xml keys    
         elif response.getStatedMimeType() == 'XML':
+
             if self.cbParamXMLResponse.isSelected():
                 try:
                     # Get XML attributes
@@ -579,7 +614,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 except Exception as e:
                     self._stderr.println(e)  
 
+        # If the mime type is HTML then get <input> name and id values, and meta tag names
         elif response.getStatedMimeType() == 'HTML':
+        
             if self.cbParamInputField.isSelected():
                 # Get Input field name and id attributes
                 try:
@@ -593,33 +630,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             self.param_list.add(input_id.group().strip())
                 except Exception as e:
                     self._stderr.println(e)  
-
-            if self.cbParamJSVars.isSelected():
-                # Get inline javascript variables defined with "let"
-                try:
-                    js_keys = re.finditer(r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))", body)
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.param_list.add(key.group().strip())
-                except Exception as e:
-                    self._stderr.println(e)  
-                # Get inline javascript variables defined with "var"
-                try:
-                    js_keys = re.finditer(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.param_list.add(key.group().strip())
-                except Exception as e:
-                    self._stderr.println(e)  
-                # Get inline javascript constants
-                try:
-                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.param_list.add(key.group().strip())
-                except Exception as e:
-                    self._stderr.println(e) 
-
+            
             if self.cbParamMetaName.isSelected():
                 # Get meta tag name attribute
                 try:
@@ -629,26 +640,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         if meta_name is not None and meta_name.group() != "":
                             self.param_list.add(meta_name.group().strip())
                 except Exception as e:
-                    self._stderr.println(e) 
-        
-        elif response.getStatedMimeType() == 'script':
-            if self.cbParamJSVars.isSelected():
-                # Get javascript variables
-                try:
-                    js_keys = re.finditer(r"(?<=(var|let)\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.param_list.add(key.group().strip())
-                except Exception as e:
-                    self._stderr.println(e)  
-                # Get javascript constants
-                try:
-                    js_keys = re.finditer(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.param_list.add(key.group().strip())
-                except Exception as e:
-                    self._stderr.println(e) 
+                    self._stderr.println(e)
 
         return
 
@@ -663,4 +655,5 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         for word in words:
             if ("." not in word) and (not word.isnumeric()):
                 self.param_list.add(word.strip())
+
         return

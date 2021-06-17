@@ -2,7 +2,7 @@
 
 This is a collection of extensions to Burp Suite that I have written.
 
-## getAllParams.py - Version 1.0
+## getAllParams.py - Version 1.1
 
 This is a python extension that runs in Portswigger's Burp Suite and parses an already crawled sitemap to build a custom parameter list. 
 It also adds common parameter names that could be useful in the final list used for fuzzing.
@@ -38,4 +38,5 @@ RESPONSE PARAMETERS:
 - XML paramaters (Thanks to contribution by Pichik)
 - Words from URL paths, if you are using this to generate a wordlist (Thanks to contribution by Pichik)
 - Name and Id attribute from HTML Input fields
+- Javascript variables and constants in ALL types of reponses (JS vars could be in the html, script and even JSON response within a .js.map file)
 - Meta tag Name attribute
