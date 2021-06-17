@@ -56,6 +56,8 @@ import threading
 
 COMMON_PARAMS = ['page', 'callback', 'next', 'prev', 'previous', 'ref', 'go', 'return', 'goto', 'r_url', 'returnurl', 'returnuri', 'location', 'locationurl', 'retunr_url', 'goTo', 'r_Url', 'r_URL', 'returnUrl', 'returnURL', 'returnUri', 'retunrURI', 'locationUrl', 'locationURL', 'return_Url', 'return_URL', 'site', 'debug', 'active', 'admin', 'id' ]
 
+DEFAULT_QSV = 'XNLV'
+
 PARAM_URL = 0
 PARAM_BODY = 1
 PARAM_COOKIE = 2
@@ -106,15 +108,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.lblOutputOptions.setForeground(Color(235,136,0))
         self.cbIncludeCommonParams = self.defineCheckBox("Include the list of common params in list (e.g. used for redirects)?", True)
         self.cbIncludePathWords = self.defineCheckBox("Include URL path words in parameter list?", False)
-        self.cbSaveFile = self.defineCheckBox("Save file to home directory (or Documents folder on Windows)?")
-        self.cbShowQueryString = self.defineCheckBox("Build concatenated query string?")
-        self.lblQueryStringVal = JLabel("Concatenated query string param value")
+        self.cbSaveFile = self.defineCheckBox("Auto save output to directory")
+        self.cbSaveFile.addItemListener(self.cbSaveFile_clicked)   
+        self.inSaveDir = JTextField(34)
+        self.cbShowQueryString = self.defineCheckBox("Build concatenated query string with param value")
+        self.cbShowQueryString.addItemListener(self.cbShowQueryString_clicked)   
         self.inQueryStringVal = JTextField(8)
-        self.grpValue = JPanel()
-        self.grpValue.add(self.lblQueryStringVal)
-        self.grpValue.add(self.inQueryStringVal)
 
-        self.lblParamList = JLabel("The latest list of params found:")
+        self.lblParamList = JLabel("Potential parameters found:")
+        self.lblParamList.setFont(Font('Tahoma', Font.BOLD, 14))
+        self.lblParamList.setForeground(Color(235,136,0))
+
         self.outParamList = JTextArea("")
         self.outParamList.setLineWrap(True)
         self.outParamList.setEditable(False)
@@ -128,14 +132,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.scroll_outQueryString = JScrollPane(self.outQueryString)
         self.scroll_outQueryString.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS)
 
-        self.lblCount = JLabel("")
-        self.lblCount.setForeground(Color(235,136,0))
-
         self.btnSave = JButton("Save Options", actionPerformed=self.saveConfig)
         self.btnRestore = JButton("Restore Defaults", actionPerformed=self.resetConfig)
         self.grpConfig = JPanel()
-        self.grpConfig.add(self.btnSave)
         self.grpConfig.add(self.btnRestore)
+        self.grpConfig.add(self.btnSave)
 
         # definition of config tab
         self.tab = JPanel()
@@ -149,7 +150,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         # If the query string param value doesn't exist, set it to the default
         if self.inQueryStringVal.text == "":
-            self.inQueryStringVal.text = "XNLV"
+            self.inQueryStringVal.text = DEFAULT_QSV
 
         layout.setHorizontalGroup(
             layout.createSequentialGroup()
@@ -178,18 +179,20 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.lblOutputOptions)
                     .addComponent(self.cbIncludePathWords)
                     .addComponent(self.cbIncludeCommonParams)
-                    .addComponent(self.cbSaveFile)
-                    .addComponent(self.cbShowQueryString)
-                    .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(self.cbSaveFile)
+                        .addComponent(self.inSaveDir, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    )
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(self.cbShowQueryString)
+                        .addComponent(self.inQueryStringVal, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    )
                     .addComponent(self.grpConfig, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addComponent(self.lblQueryString)
                     .addComponent(self.scroll_outQueryString, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                 )
                 .addGroup(layout.createParallelGroup()
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(self.lblParamList)
-                        .addComponent(self.lblCount)
-                    )
+                    .addComponent(self.lblParamList)
                     .addComponent(self.scroll_outParamList)
                 )
             )
@@ -222,18 +225,20 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.lblOutputOptions)
                     .addComponent(self.cbIncludePathWords)
                     .addComponent(self.cbIncludeCommonParams)
-                    .addComponent(self.cbSaveFile)
-                    .addComponent(self.cbShowQueryString)
-                    .addComponent(self.grpValue, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup()
+                        .addComponent(self.cbSaveFile)
+                        .addComponent(self.inSaveDir, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    )
+                    .addGroup(layout.createParallelGroup()
+                        .addComponent(self.cbShowQueryString)
+                        .addComponent(self.inQueryStringVal, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
+                    )
                     .addComponent(self.grpConfig, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addComponent(self.lblQueryString)
                     .addComponent(self.scroll_outQueryString)
                 )
                 .addGroup(layout.createSequentialGroup()
-                    .addGroup(layout.createParallelGroup()
-                        .addComponent(self.lblParamList)
-                        .addComponent(self.lblCount)
-                    )
+                    .addComponent(self.lblParamList)
                     .addComponent(self.scroll_outParamList)
                 )
             )
@@ -247,7 +252,31 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         checkBox.setEnabled(enabled)
         return checkBox
     
+    def cbSaveFile_clicked(self, e=None):
+        # Only enable the Save Directory field if the Save checkbox is selected
+        if self.cbSaveFile.isSelected():
+            self.inSaveDir.setEnabled(True)
+        else:
+            self.inSaveDir.setEnabled(False)
+
+    def cbShowQueryString_clicked(self, e=None):
+        # Only enable the Query String Param Value field if the Build Concatenated Query String checkbox is selected
+        if self.cbShowQueryString.isSelected():
+            self.inQueryStringVal.setEnabled(True)
+        else:
+            self.inQueryStringVal.setEnabled(False)
+
     def saveConfig(self, e=None):
+        # Save the autosave output directory used, IF it is real directory
+        try:
+            # If its a real directory, the following line will not fail
+            listOfFile = os.listdir(self.inSaveDir.text)
+            # Leave the value as it is
+        except:
+            # It wasn't a real directory, so set it back to Home directory
+            self.inSaveDir.text = self.get_filedirectory()
+
+        # Save the config
         config = {
             'saveFile': self.cbSaveFile.isSelected(),
             'paramUrl': self.cbParamUrl.isSelected(),
@@ -265,7 +294,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             'paramXmlResponse': self.cbParamXMLResponse.isSelected(),
             'paramInputField': self.cbParamInputField.isSelected(),
             'paramJSVars': self.cbParamJSVars.isSelected(),
-            'paramMetaName': self.cbParamMetaName.isSelected()
+            'paramMetaName': self.cbParamMetaName.isSelected(),
+            'saveDir': self.inSaveDir.text
             }
         self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
 
@@ -282,15 +312,25 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.cbParamCookie.setSelected(config['paramCookie'])
                 self.cbParamXml.setSelected(config['paramXml'])
                 self.cbParamXmlAttr.setSelected(config['paramXmklAttr'])
-                self.inQueryStringVal.text = config['queryStringVal'] 
-                self.cbShowQueryString.setSelected(config['showQueryString']),
-                self.cbIncludeCommonParams.setSelected(config['includeCommonParams']),
-                self.cbIncludePathWords.setSelected(config['includePathWords']),
-                self.cbParamJSONResponse.setSelected(config['paramJsonResponse']),
-                self.cbParamXMLResponse.setSelected(config['paramXmlResponse']),
-                self.cbParamInputField.setSelected(config['paramInputField']),
-                self.cbParamJSVars.setSelected(config['paramJSVars']),
+                try:
+                    self.inQueryStringVal.text = config['queryStringVal'] 
+                except:
+                    self.inQueryStringVal.text = DEFAULT_QSV
+                self.cbShowQueryString.setSelected(config['showQueryString'])
+                self.cbIncludeCommonParams.setSelected(config['includeCommonParams'])
+                self.cbIncludePathWords.setSelected(config['includePathWords'])
+                self.cbParamJSONResponse.setSelected(config['paramJsonResponse'])
+                self.cbParamXMLResponse.setSelected(config['paramXmlResponse'])
+                self.cbParamInputField.setSelected(config['paramInputField'])
+                self.cbParamJSVars.setSelected(config['paramJSVars'])
                 self.cbParamMetaName.setSelected(config['paramMetaName'])
+                try:
+                    self.inSaveDir.text = (config['saveDir'])
+                    #Check the directory is valid, otherwise an error will be raised and it will be reset to default
+                    listOfFile = os.listdir(self.inSaveDir.text)
+                except:
+                    self.inSaveDir.text = self.get_filedirectory()
+
             except Exception as e:
                 self._stderr.println(e)  
                 pass
@@ -308,11 +348,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamXml.setSelected(False)
         self.cbParamXmlAttr.setSelected(False)
         self.cbShowQueryString.setSelected(True)
-        self.inQueryStringVal.text = 'XNLV' 
+        self.inQueryStringVal.text = DEFAULT_QSV
         self.cbIncludeCommonParams.setSelected(True)
         self.cbIncludePathWords.setSelected(False)
         self.cbParamJSVars.setSelected(False)
         self.cbParamMetaName.setSelected(False)
+        self.inSaveDir.text = self.get_filedirectory()
         self.saveConfig
 
     def getTabCaption(self):
@@ -334,8 +375,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
     def menu_action(self, event):
         
-        # before starting the search, update the text boxes
-        self.lblCount.text = '   SEARCHING...'
+        # Before starting the search, update the text boxes
+        self.lblParamList.text = 'Potential parameters found - SEARCHING...'
         self.outParamList.text = 'SEARCHING...'
         if self.cbShowQueryString.isSelected() == True:
             self.outQueryString.text = 'SEARCHING...'
@@ -418,25 +459,28 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         return
 
+    def get_filedirectory(self):
+        # If on Windows then change the file path to the users Documents directory
+        # otherwise it will just be in the users home directory
+        try:
+            if str(platform.uname()).find('Windows'):
+                directory = os.path.expanduser('~') +'\\Documents\\' 
+            else:
+                directory = os.path.expanduser('~')
+        except:
+            # If platform.uname() is not available, just default to '~/'
+            directory = '~/'
+        
+        return directory
+
     def get_filepath(self, rootname):
         '''
         Determine the full path of the output file
         '''
         # Use the target domain in the filename
         filename = urlparse(rootname).hostname
-        filename = filename + '_getAllParams.txt'
-        
-        # If on Windows then change the file path to the users Documents directory
-        # otherwise it will just be in the users home directory
-        try:
-            if str(platform.uname()).find('Windows'):
-                filepath = '~\\Documents\\' + filename
-            else:
-                filepath = '~/' + filename
-        except:
-            # If platform.uname() is not available, just default to '~/'
-            filepath = '~/' + filename
-            
+        filepath = self.inSaveDir.text + '\\' + filename + '_getAllParams.txt'
+      
         return filepath
         
     def display_params(self, filepath):
@@ -454,10 +498,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         print('')
         print('# Below is the list of all the unique parameters')
         print('')
-        index = 1
+        index = 0
         allParams = ''
         self.outParamList.text = ''
-        self.lblCount.text = '   UPDATING...   PLEASE WAIT...'
+        self.lblParamList.text = 'Potential parameters found - UPDATING, PLEASE WAIT...'
         if self.cbShowQueryString.isSelected() == True:
             self.outQueryString.text = 'UPDATING...'
         for param in sorted(self.param_list):
@@ -470,7 +514,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     index += 1
             except Exception as e: 
                 self._stderr.println(e)   
-        self.lblCount.text = '   ' + str(index) + ' POTENTIAL PARAMETERS FOUND'
+        self.lblParamList.text = 'Potential parameters found - ' + str(index) + ' :'
          
         # List the paramaters in a concatenated string with unique values if required
         self.outQueryString.text = ''
