@@ -1,5 +1,5 @@
 '''
-Get All Params by /XNL-h4ck3r (@xnl_h4ck3r)
+Get All Params by /XNL-h4ck3r (@xnl_h4ck3r) - Version 1.0
 
 This is a python extension that runs in Portswigger's Burp Suite and parses an already crawled sitemap to build a custom parameter list. 
 It also adds common parameter names that could be useful in the final list used for fuzzing.
@@ -384,8 +384,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Run everything in a thread so it doesn't freeze Burp while it gets everythng
         t = threading.Thread(target=self.do_everything, args=[])
         t.daemon = True
-        t.start()
-                
+        t.start() 
         return
     
     def do_everything (self):
@@ -531,8 +530,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if self.outParamList.text == '':
             self.outParamList.text = 'NO PARAMETERS FOUND'
             if self.cbShowQueryString.isSelected() == True:
-                self.outQueryString.text = 'NO PARAMETERS FOUND'
-                  
+                self.outQueryString.text = 'NO PARAMETERS FOUND'                  
         return
         
     def writefile_params(self, filepath):
