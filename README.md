@@ -2,7 +2,7 @@
 
 This is a collection of extensions to Burp Suite that I have written.
 
-## getAllParams.py - Version 1.1
+## getAllParams.py - Version 1.2
 
 This is a python extension that runs in Portswigger's Burp Suite and parses an already crawled sitemap to build a custom parameter list. 
 It also adds common parameter names that could be useful in the final list used for fuzzing.
