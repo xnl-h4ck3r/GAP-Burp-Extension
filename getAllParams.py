@@ -507,7 +507,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         for param in sorted(self.param_list):
             try:
                 if len(param) > 0:
-                    print(param)
+                    print(param.encode('UTF-8'))
                     self.outParamList.text = self.outParamList.text + param + '\n'
                     # Build a list of paramaters in a concatenated string with unique values
                     allParams = allParams + param + '=' + self.inQueryStringVal.text + str(index) + '&'
@@ -622,12 +622,20 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 try:
                     html_keys = (re.findall('<input(.*?)>', body))
                     for key in html_keys:
-                        input_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
+                        input_name = re.search(r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))", key)
                         if input_name is not None and input_name.group() != "":
-                            self.param_list.add(input_name.group().strip())
-                        input_id = re.search(r"(?<=id=(\"|'))(.*?)(?=(\"|'))", key)
+                            input_name_val = input_name.group() 
+                            input_name_val = input_name_val.replace("=","")
+                            input_name_val = input_name_val.replace("\"","")
+                            input_name_val = input_name_val.replace("'","")
+                            self.param_list.add(input_name_val.strip())
+                        input_id = re.search(r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))", key)
                         if input_id is not None and input_id.group() != "":
-                            self.param_list.add(input_id.group().strip())
+                            input_id_val = input_id.group()
+                            input_id_val = input_id_val.replace("=","")
+                            input_id_val = input_id_val.replace("\"","")
+                            input_id_val = input_id_val.replace("'","")
+                            self.param_list.add(input_id_val.strip())
                 except Exception as e:
                     self._stderr.println(e)  
             
@@ -636,9 +644,20 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 try:
                     meta_keys = (re.findall('<meta(.*?)>', body))
                     for key in meta_keys:
-                        meta_name = re.search(r"(?<=name=(\"|'))(.*?)(?=(\"|'))", key)
-                        if meta_name is not None and meta_name.group() != "":
-                            self.param_list.add(meta_name.group().strip())
+                        input_name = re.search(r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))", key)
+                        if input_name is not None and input_name.group() != "":
+                            input_name_val = input_name.group() 
+                            input_name_val = input_name_val.replace("=","")
+                            input_name_val = input_name_val.replace("\"","")
+                            input_name_val = input_name_val.replace("'","")
+                            self.param_list.add(input_name_val.strip())
+                        input_id = re.search(r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))", key)
+                        if input_id is not None and input_id.group() != "":
+                            input_id_val = input_id.group()
+                            input_id_val = input_id_val.replace("=","")
+                            input_id_val = input_id_val.replace("\"","")
+                            input_id_val = input_id_val.replace("'","")
+                            self.param_list.add(input_id_val.strip())
                 except Exception as e:
                     self._stderr.println(e)
 
