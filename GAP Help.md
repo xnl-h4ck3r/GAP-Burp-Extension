@@ -1,13 +1,22 @@
 <h1>GAP (Get All Params) by @xnl_h4ck3r</h1>
 <hr><br>
-<b>This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on. This is to be used instead of the original getAllParams extension if you want to make use of the additional link functionality. 
+<b>This is an evolution of the original getAllParams extension for Burp Suite. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on. This is to be used instead of the original getAllParams extension if you want to make use of the additional link functionality. 
 This code is far from perfect, but any constructive criticism is very much welcome! I hope this tool helps you.
 </b>
 <br>
 <h3>Acknowledgments:</h3> 
 Respect and thanks go to @HolyBugx for help with ideas, testing and patience!<br>
 A shout out to Gerben Javado and his amazing tool <b>Link Finder</b> who's regular expression (regex) provided the starting point for the Link mode in GAP.
-<h1>How to run</h1>
+
+<h1>How to Install</h1>
+<ol>
+<li>Get <code>GAP.py</code> (https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP.py)</li>
+<li>Point Burp Suite to the Jython .jar file in <b>Extender > Options > Python Environment</b></li>
+<li>On <b>Extensions</b> tab, click <b>Add</b></li>
+<li>Set <b>Extension type</b> to <b>Python</b> and select the <code>GAP.py</code> file</li>
+<li>Click <b>Next</b> and you're good to go <b>&#129304;</b></i>
+</ol>
+<h1>How to Run</h1>
 On the <b>Target -> Site map</b> tab of Burp you can see select a specific host, a selection of hosts (holding down <i>Ctrl</i> or <i>Shift</i>), or all hosts (using <i>Ctrl-A</i>). 
 Once the required hosts are selected, right click and select <b>Extensions -> GAP</b> to run the tool.
 Go to the <b>GAP</b> tab and see the results. What gets returned will depend on the options selected, and these will all be described below.
@@ -45,10 +54,9 @@ These are potential parameters that can be found in the HTTP responses. These ar
 <li><b>Params from links found</b> - THIS OPTION IS ONLY ENABLED IF LINKS MODE IS ALSO USED. Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope, or there is just a path and no way of determining if it is in scope.</li>
 </ul>
 
-<h2>Output options</h2>
+<h2>Output Options</h2>
 The options under this section of the tool that specifically relate to Parameter mode are:
 <ul>
-<li><b>Params from links found</b> - THIS OPTION IS ONLY ENABLED IF PARAMETERS MODE IS ALSO USED. Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope, or there is just a path and no way of determining if it is in scope</li>
 <li><b>Include the list of common params in list (e.g. used for redirects)?</b> - Common parameter names are often used across targets, mainly for redirects. These can be included in the potential parameter list by checking this option. The list is stored in constant <code>COMMON_PARAMS</code>. <b>NOTE: Some values are the same, but different case in places as these will be treated differently</b></li>
 <li><b>Build concatenated query string with param value</b> - If checked, the potential parameters found will be built into a query string, each with the value given in the text box (defaults to XNLV) followed by a unique number.</li>
 <li><b>Include URL path words in parameter list?</b> - The words in the response URL path are included as potential parameters if the URL is in scope.</li>
