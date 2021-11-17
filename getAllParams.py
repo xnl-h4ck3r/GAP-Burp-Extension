@@ -571,7 +571,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         self.param_list.add(key.group().strip())
             except Exception as e:
                 self._stderr.println(e)  
-
+            
             # Get inline javascript variables defined with "var"
             try:
                 js_keys = re.finditer(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))", body)
