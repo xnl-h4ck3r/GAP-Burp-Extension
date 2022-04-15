@@ -6,7 +6,7 @@ Respect and thanks go to @HolyBugx for help with ideas, testing and patience!
 Get full instructions at https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md or press the Help button on the GAP tab
 
 '''
-VERSION = '1.0'
+VERSION = '1.1'
 
 from burp import (IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab)
 from javax.swing import (JFrame, JMenuItem, GroupLayout, JPanel, JCheckBox, JTextField, JLabel, JButton, JScrollPane, JTextArea, ScrollPaneConstants, JFileChooser, BorderFactory, JEditorPane, ImageIcon)
@@ -1696,6 +1696,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Get the content-type from the response
         try:
             contentType = re.findall(r"(?<=Content-Type\:\s)[a-zA-Z\-].+\/[a-zA-Z\-].+?(?=\s|\;)", header, re.IGNORECASE)[0]
+            # If content-type is in format like "text/plain; charset=utf-8", then just select the first part
+            contentType = contentType.split(";")[0]
         except Exception as e:
             contentType = ''
 
