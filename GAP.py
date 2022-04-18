@@ -1729,19 +1729,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # If it is content-type we want to process then carry on
             if self.includeContentType(header):
                 
-                reString = (
-                    r"(?:\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,}\.[a-zA-Z]{2,}|localhost)[^\"'\n]{0,})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()]{1,})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,}\.(?:[a-zA-Z]{1,4}"
-                    + self.LINK_REGEX_NONSTANDARD_FILES
-                    + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,}\.(?:"
-                    + LINK_REGEX_FILES
-                    + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)http[^>\n]*"
-                )
+                reString=r"(?:\"|'|\\n|\\r|\n|\r)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,}\.[a-zA-Z]{2,}|localhost)[^\"']{0,})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()]{1,})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*"
+                                   
                 link_keys = re.finditer(reString, body, re.IGNORECASE)
                 
                 for key in link_keys:
                     if key is not None and key.group() != '':
                         link = key.group() 
-                        link = link.strip("\"\'\n\r(")
+                        link = link.strip("\"\'\n\r( ")
                         link = link.replace("\\n","")
                         link = link.replace("\\r","")
                         
