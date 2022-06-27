@@ -1,4 +1,4 @@
-<h1>GAP (Get All Params) by @xnl_h4ck3r</h1>
+<html><h1>GAP (Get All Params) by @xnl_h4ck3r</h1>
 <hr><br>
 <b>This is an evolution of the original getAllParams extension for Burp Suite. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on. This is to be used instead of the original getAllParams extension if you want to make use of the additional link functionality. 
 This code is far from perfect, but any constructive criticism is very much welcome! I hope this tool helps you.
@@ -30,6 +30,7 @@ What each mode does will be explained below, but if you don't need both enabled 
 <h1>Parameters Mode</h1>
 
 When the GAP Mode of Parameters is selected then GAP will try to find as many potential parameters based the following options:
+
 <h2>Request Parameters</h2>
 These are parameters that Burp itself identifies from HTTP requests and are part of the Burp Extender API IParameter interface.
 <ul>
@@ -45,6 +46,7 @@ These are parameters that Burp itself identifies from HTTP requests and are part
 <h2>Response Parameters</h2>
 
 These are potential parameters that can be found in the HTTP responses. These are identified by GAP itself rather than through the Burp Extender API.
+
 <ul>
 <li><b>JSON params</b> - if the response has a MIME type of JSON then the Key names will be retrieved</li>
 <li><b>Value of tag attributes within XML structure</b> - if the response has a MIME type of XML then the XML attributes are retrieved</li>
@@ -65,6 +67,7 @@ The options under this section of the tool that specifically relate to Parameter
 <h1>Links Mode</h1>
 
 When the GAP Mode of Links is selected then GAP will try to find possible links based on the following. Also, only requests of a certain <i>Content-Type</i> are checked for potential links. This is determined by the constant <code>CONTENTTYPE_EXCLUSIONS</code> in the code (these are types such as images, video, audio, fonts, etc.)
+
 <ul>
 <li><b>Include site map endpoints in link list?</b> - This will include endpoints from the Burp Site map in the potential Link list, if they are in scope.</li>
 <li><b>Link exclusions</b> - The field contains a comma separated list of values. If any of these values exists in a potential link found, then it will be excluded from the final list. There is a initial default list determined by the <code>DEFAULT_EXCLUSIONS</code> constant, but you can change this and save your settings.</li>
@@ -91,7 +94,7 @@ The filter is something that is applied after GAP has run. It allows you to look
 <br>
 An additional feature of GAP is to automatically include links of valid <code>.js.map</code> (javascript source map) files. These are identified by responses that contain the <code>//# sourceMappingURL</code> line, or have a HTTP header of <code>SourceMap</code> or <code>X-SourceMap</code>.<br>
 <br>
-To find links, a complex regex is used to look for different formats and contexts for potential links and files. This regex was initially based on the one used in <b>Link Finder</b> by Gerben Javado, but has been evolved to try and identify more with minimal false positives. 
+To find links, a complex regex is used to look for different formats and contexts for potential links and files. This regex was initially based on the one used in <b>Link Finder</b> by Gerben Javado, but has been evolved to try and identify more with minimal false positives.
 
 <h1>Output File Option</h1>
 The results of GAP can be written to files as well as being displayed in the tool.
@@ -109,6 +112,9 @@ If for any reason you want to revert to the default configuration options, you c
 <h1>Troubleshooting and Feedback</h1>
 If you have any problems with GAP, you can report an issue on Github. Before you report an issue, please look at the <b>Extender -> Extensions</b> tab in Burp, click on the GAP extension in the list and include details of any output displayed on the <b>Errors</b> tab with your issue. If you know of a parameter or link that you believe GAP should/shouldn't have identified then please provide as much info as possible, e.g. the options you had selected, the relevant endpoint, etc. <br>
 <br>
-Thank you for trying out GAP!<p>
+Thank you for trying out GAP!<br>
+Good luck and good hunting!
+If you really love the tool (or any others), or they helped you find an awesome bounty, consider <a href="https://ko-fi.com/xnlh4ck3r">BUYING ME A COFFEE!</a> ☕ (I could use the caffeine!)<p>
 @xnl-h4ck3r
 <b>&#129304;</b>
+</html>

@@ -5,8 +5,10 @@ Respect and thanks go to @HolyBugx for help with ideas, testing and patience!
 
 Get full instructions at https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md or press the Help button on the GAP tab
 
+Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 '''
-VERSION = '1.2'
+
+VERSION = '1.3'
 
 from burp import (IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab)
 from javax.swing import (JFrame, JMenuItem, GroupLayout, JPanel, JCheckBox, JTextField, JLabel, JButton, JScrollPane, JTextArea, ScrollPaneConstants, JFileChooser, BorderFactory, JEditorPane, ImageIcon)
@@ -46,6 +48,7 @@ LINK_REGEX_FILES = 'php|php3|php5|asp|aspx|ashx|cfm|cgi|pl|jsp|jspx|json|js|acti
 
 # The GAP Help file and 404 message if unavailable
 GAP_HELP_URL = 'https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md'
+GAP_HELP_URL_BUTTON = 'https://raw.githubusercontent.com/xnl-h4ck3r/burp-extensions/main/GAP%20Help.md'
 GAP_HELP_404 = '<h1>Oops... mind the GAP!</h1><p>Sorry, this should be displaying the content of the following page:<p><a href=' + GAP_HELP_URL + '>' + GAP_HELP_URL + '</a><p>However, there seems to be a problem connecting to that resource.<p>Please try again later. If the problem persists, please raise an issue on Github.'
 
 # URLs for icons used
@@ -545,10 +548,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         jpane = JEditorPane()
         jpane.setEditable(False)
         try:
-            jpane.setPage(GAP_HELP_URL)
+            # Workaround to display text correctly
+            jpane2 = JEditorPane()
+            jpane2.setPage(GAP_HELP_URL_BUTTON)
+            text = jpane2.getText()
+            jpane.setContentType('text/html')
+            jpane.setText(text)
         except:
             jpane.setContentType('text/html')
             jpane.setText(GAP_HELP_404)
+        jpane.setCaretPosition(0)
         jscroll = JScrollPane(jpane)
         jframe = JFrame('GAP Help')
         jframe.getContentPane().add(jscroll)
@@ -1021,7 +1030,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
     def doEverything (self):
         '''
         The methods run in a separate thread when the GAP menu item has been clicked.
-        Obtains the selected messages from the interface. Filters the sitmap for all messages containing
+        Obtains the selected messages from the interface. Filters the sitemap for all messages containing
         URLs within the selected messages' hierarchy. If so, the message is analyzed to create a parameter list.
         '''
         if _debug: print("doEverything started")
@@ -1654,7 +1663,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # - has any new line characters in
         # - doesn't have any letters or numbers in 
         try:
-            if link.count('\n') > 1 or link.startswith('#'):
+            if link.count('\n') > 1 or link.startswith('#') or link.startswith("$"):
                 include = False
             if include:
                 include = not(bool(re.search(r"\s", link)))
@@ -1671,7 +1680,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             try:
                 lstExclusions=self.inExclusions.text.split(',')
             except:
-                self._stderr.println('Exclusion list invald. Using default list')
+                self._stderr.println('Exclusion list invalid. Using default list')
                 lstExclusions=DEFAULT_EXCLUSIONS.split(',')
             
             # Go through lstExclusions and see if finding contains any. If not then continue
@@ -1722,15 +1731,23 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         body = response_string[body_offset:]
         header = response_string[:body_offset]
         
-        # Some URLs may be displayed in the body within strings that have escaped /, so replace any \/ with /
-        body = body.replace("\/","/")
+        # Some URLs may be displayed in the body within strings that have different encodings of / and : so replace these
+        pattern = re.compile("(&#x2f;|%2f|\\u002f|\\\/)", re.IGNORECASE)
+        body = pattern.sub("/",body)
+        pattern = re.compile("(&#x3a;|%3a|\\u003a|\\\/)", re.IGNORECASE)
+        body = pattern.sub(":",body)
         
         try:
             # If it is content-type we want to process then carry on
             if self.includeContentType(header):
                 
-                reString=r"(?:\"|'|\\n|\\r|\n|\r)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,}\.[a-zA-Z]{2,}|localhost)[^\"']{0,})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()]{1,})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*"
-                                   
+                reString = (
+                    r"(?:\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,}\.[a-zA-Z]{2,}|localhost)[^\"'\n]{0,})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,}\.(?:[a-zA-Z]{1,4}"
+                    + self.LINK_REGEX_NONSTANDARD_FILES
+                    + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,}\.(?:"
+                    + LINK_REGEX_FILES
+                    + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)http[^>\n]*"
+                )                   
                 link_keys = re.finditer(reString, body, re.IGNORECASE)
                 
                 for key in link_keys:
@@ -1756,13 +1773,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 else:
                                     end=1                     
                                 link = link[start:-end]
-                            if link[-1] == '\\':
-                                link = link[0:-1]
+                            
+                            # If there are any trailing back slashes, remove them all
+                            link = link.rstrip("\\")
                             
                         except Exception as e:
                             self._stderr.println('getResponseLinks 1')
                             self._stderr.println(e)
                         
+                        # If the link starts with a . and the  2nd character is not a . or / then remove the first .
+                        if link[0] == '.' and link[1] != '.' and link[1] != '/':
+                            link = link[1:]
+                            
                         # Determine if Link should be included
                         include = self.includeLink(link)
                         
@@ -1777,13 +1799,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 lastpos=len(link)
                             mapFile = link[firstpos+1:lastpos]
                             
-                            # Get the responseurl up to last /
+                            # Get the response url up to last /
                             lastpos=responseUrl.rfind('/')                         
                             mapPath = responseUrl[0:lastpos+1]
                            
                             # Add them to get link of js.map and add to list
                             link = mapPath + mapFile
-                                               
+                            link = link.replace("\n", "")
+                        
+                        # If a link starts with // then add http:
+                        if link.startswith("//"):
+                            link = "http:" + link
+                                                       
                         # Only add the finding if it should be included
                         if include:
                             self.link_list.add(link)
