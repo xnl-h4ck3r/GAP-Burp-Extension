@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/burp-extensions/blob/main
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -109,7 +109,7 @@ COMMON_PARAMS = [
 
 # A comma separated list of Link exclusions used when no options have been saved, or when the "Restore defaults" button is pressed
 # Links are NOT displayed if they contain these strings. This just applies to the links found in endpoints, not the origin link in which it was found
-DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,w3.org,doubleclick.net,youtube.com,.vue,jquery,bootstrap,font,jsdelivr.net,vimeo.com,pinterest.com,facebook,linkedin,twitter,instagram,google,mozilla.org,jibe.com,schema.org,schemas.microsoft.com,wordpress.org,w.org,wix.com,parastorage.com,whatwg.org,polyfill.io,typekit.net,schemas.openxmlformats.org,openweathermap.org,openoffice.org,reactjs.org,angularjs.org,java.com,purl.org,/image,/img,/css,/wp-json,/wp-content,/wp-includes,/theme,/audio,/captcha,/font,robots.txt,node_modules"
+DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,w3.org,doubleclick.net,youtube.com,.vue,jquery,bootstrap,font,jsdelivr.net,vimeo.com,pinterest.com,facebook,linkedin,twitter,instagram,google,mozilla.org,jibe.com,schema.org,schemas.microsoft.com,wordpress.org,w.org,wix.com,parastorage.com,whatwg.org,polyfill.io,typekit.net,schemas.openxmlformats.org,openweathermap.org,openoffice.org,reactjs.org,angularjs.org,java.com,purl.org,/image,/img,/css,/wp-json,/wp-content,/wp-includes,/theme,/audio,/captcha,/font,robots.txt,node_modules,.wav,.gltf,.zip,.gz,.tar,.7z,.deb,.dmg"
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
@@ -2128,6 +2128,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         pattern = re.compile("(&#x3a;|%3a|\\u003a|\\\/)", re.IGNORECASE)
         body = pattern.sub(":", body)
 
+        # Replace occurrences of HTML entity &quot; with an actual double quote
+        body = body.replace('&quot;','"')
+        
         try:
             # If it is content-type we want to process then carry on
             if self.includeContentType(header):
