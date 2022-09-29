@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/burp-extensions/blob/main
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
 
-VERSION = "1.4"
+VERSION = "1.5"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -113,7 +113,7 @@ DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
-CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf"
+CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject"
 
 # The default value (used until options are saved, or when the "Restore defaults" button is pressed) for the generated query string of all parameters.
 DEFAULT_QSV = "XNLV"
@@ -2041,11 +2041,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # And exclude if the link:
         # - starts with literal characters \n
         # - starts with #
+        # - starts with \
         # - has any white space characters in
         # - has any new line characters in
         # - doesn't have any letters or numbers in
         try:
-            if link.count("\n") > 1 or link.startswith("#") or link.startswith("$"):
+            if link.count("\n") > 1 or link.startswith("#") or link.startswith("$") or link.startswith("\\"):
                 include = False
             if include:
                 include = not (bool(re.search(r"\s", link)))
@@ -2140,7 +2141,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     + self.LINK_REGEX_NONSTANDARD_FILES
                     + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,}\.(?:"
                     + LINK_REGEX_FILES
-                    + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*"
+                    + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(?<=\=)\s*\/[0-9a-zA-Z]+[^>\n]*"
                 )
                 link_keys = re.finditer(reString, body, re.IGNORECASE)
 
