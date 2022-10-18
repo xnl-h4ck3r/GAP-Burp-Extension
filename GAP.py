@@ -3,12 +3,10 @@ GAP by /XNL-h4ck3r (@xnl_h4ck3r)
 
 Respect and thanks go to @HolyBugx for help with ideas, testing and patience!
 
-Get full instructions at https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md or press the Help button on the GAP tab
+Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/main/GAP%20Help.md or press the Help button on the GAP tab
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-
-VERSION = "1.6"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -122,9 +120,9 @@ DEFAULT_QSV = "XNLV"
 LINK_REGEX_FILES = "php|php3|php5|asp|aspx|ashx|cfm|cgi|pl|jsp|jspx|json|js|action|html|xhtml|htm|bak|do|txt|wsdl|wadl|xml|xls|xlsx|bin|conf|config|bz2|bzip2|gzip|tar\.gz|tgz|log|src|zip|js\.map"
 
 # The GAP Help file and 404 message if unavailable
-GAP_HELP_URL = "https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md"
+GAP_HELP_URL = "https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/main/GAP%20Help.md"
 GAP_HELP_URL_BUTTON = (
-    "https://raw.githubusercontent.com/xnl-h4ck3r/burp-extensions/main/GAP%20Help.md"
+    "https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP%20Help.md"
 )
 GAP_HELP_404 = (
     "<h1>Oops... mind the GAP!</h1><p>Sorry, this should be displaying the content of the following page:<p><a href="
@@ -187,7 +185,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self._createUI()
 
         # Display welcome message
-        print("GAP - Version " + VERSION)
+        print("GAP - Version " + __import__('GAP').__version__)
         print("by @xnl_h4ck3r\n")
         print(
             "The full Help documentation can be found at "
