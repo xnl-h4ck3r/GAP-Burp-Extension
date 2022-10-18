@@ -7,11 +7,13 @@ The full Help documentation can be found [here] (https://github.com/xnl-h4ck3r/b
 
 ## TL;DR
 
-Just select a target in your Burp scope (or multiple targets) and choose extension GAP:
+1. Go to the **Extender** tab in Burp and click **Add** under **Burp Extensions**.
+2. Select **Extension type** of **Python** and select the **GAP.py** file.
+3. Just select a target in your Burp scope (or multiple targets) and choose extension **GAP**:
 
 <center><img src="https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/main/GAP/images/run.png"></center>
 
-Then go to the GAP tab to see the results:
+4. Then go to the **GAP** tab to see the results:
 
 <center><img src="https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/main/GAP/images/tab.png"></center>
 
