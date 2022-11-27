@@ -103,6 +103,21 @@ COMMON_PARAMS = [
     "forward",
     "forwardurl",
     "forward_url",
+    "src",
+    "endpoint",
+    "srcURL",
+    "q",
+    "link",
+    "import_url",
+    "images",
+    "image",
+    "id",
+    "html",
+    "ewsUrl",
+    "downloadpath",
+    "destination",
+    "consumerUri",
+    "add_imageurl"
 ]
 
 # A comma separated list of Link exclusions used when no options have been saved, or when the "Restore defaults" button is pressed
@@ -194,6 +209,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         )
         if _debug:
             print("DEBUG MODE ON\n")
+        
+        print("If you ever see anything in the Errors tab, please raise an issue on Github so I can fix it!")
 
     def _createUI(self):
         """
@@ -1367,7 +1384,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                         print(
                                             "doEverything checking Burp _callbacks.isInScope"
                                         )
-                                    inScope = self._callbacks.isInScope(oUrl)
+                                    # If a URL contains a $ then Burp raises an error for some reason when _callbacks.isInScope is done, so don't check if it does.
+                                    if not "$" in oUrl: 
+                                        inScope = self._callbacks.isInScope(oUrl)
+                                    else:
+                                        inScope = True
 
                                 except Exception as e:
                                     # The link isn't a valid URL so can't check if it is in scope.
@@ -1578,7 +1599,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         oUrl = URL(url)
                         if str(oUrl.getHost()) != "":
                             try:
-                                if self._callbacks.isInScope(oUrl):
+                                # If a URL contains a $ then Burp raises an error for some reason when _callbacks.isInScope is done, so don't check if it does.
+                                if not "$" in oUrl:
+                                    inScope = self._callbacks.isInScope(oUrl)
+                                else: 
                                     inScope = True
                             except:
                                 # Report as being inScope because we can't be sure if it is or not, but we can include just in case
@@ -2144,7 +2168,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 link_keys = re.finditer(reString, body, re.IGNORECASE)
 
                 for key in link_keys:
-                    if key is not None and key.group() != "":
+                    if key is not None and len(key.group()) > 1:
                         link = key.group()
                         link = link.strip("\"'\n\r( ")
                         link = link.replace("\\n", "")
@@ -2187,6 +2211,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         except Exception as e:
                             self._stderr.println("getResponseLinks 1")
                             self._stderr.println(e)
+                            try:
+                                self._stderr.println("The link that caused the error: " + link)
+                            except:
+                                pass
 
                         # If the link starts with a . and the  2nd character is not a . or / then remove the first .
                         if link[0] == "." and link[1] != "." and link[1] != "/":
@@ -2251,7 +2279,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         except Exception as e:
             self._stderr.println("getResponseLinks 3")
             self._stderr.println(e)
-
+            try:
+                self._stderr.println("The link that caused the error: " + link)
+            except:
+                pass
+            
         # Also add a link of a js.map file if the X-SourceMap or SourceMap header exists
         try:
             # See if the SourceMap header exists
