@@ -689,6 +689,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         if self.cbParamsEnabled.isSelected():
             self.setEnabledParamOptions(True)
+            self.lblParamList.visible = True
+            self.scroll_outParamList.visible = True
             if self.lblParamList.text == "Potential parameters found - DISABLED:":
                 self.lblParamList.text = "Potential parameters found:"
             if self.outQueryString.text == "PARAM OPTIONS DISABLED":
@@ -701,6 +703,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.outParamList.text = "PARAM OPTIONS DISABLED"
             if self.outQueryString.text == "":
                 self.outQueryString.text = "PARAM OPTIONS DISABLED"
+            self.lblParamList.visible = False
+            self.scroll_outParamList.visible = False
             # If Links is not selected then select it
             if not self.cbLinksEnabled.isSelected():
                 self.cbLinksEnabled.setSelected(True)
@@ -711,6 +715,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         if self.cbLinksEnabled.isSelected():
             self.setEnabledLinkOptions(True)
+            self.lblLinkList.visible = True
+            self.scroll_outLinkList.visible = True
+            self.grpLinkFilter.visible = True
             if self.lblLinkList == "Potential links found - DISABLED:":
                 self.lblLinkList = "Potential links found:"
             if self.outLinkList.text == "LINK OPTIONS DISABLED":
@@ -719,6 +726,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.setEnabledLinkOptions(False)
             if self.outLinkList.text == "":
                 self.outLinkList.text = "LINK OPTIONS DISABLED"
+            self.lblLinkList.visible = False
+            self.scroll_outLinkList.visible = False
+            self.grpLinkFilter.visible = False
             # If Parameters is not selected then select it
             if not self.cbParamsEnabled.isSelected():
                 self.cbParamsEnabled.setSelected(True)
