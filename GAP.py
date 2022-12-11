@@ -7,6 +7,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
+VERSION="1.9"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -200,7 +201,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self._createUI()
 
         # Display welcome message
-        print("GAP - Version " + __import__('GAP').__version__)
+        print("GAP - Version " + VERSION)
         print("by @xnl_h4ck3r\n")
         print(
             "The full Help documentation can be found at "
