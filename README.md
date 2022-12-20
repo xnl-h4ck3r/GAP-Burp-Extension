@@ -3,7 +3,7 @@
 ## About - v1.9
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on. This is to be used instead of the original getAllParams extension if you want to make use of the additional link functionality.
-The full Help documentation can be found [here] (https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
+The full Help documentation can be found [here](https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
 
 ## TL;DR
 
