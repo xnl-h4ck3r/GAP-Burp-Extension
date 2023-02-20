@@ -2805,8 +2805,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     end = 1
                                 link = link[start:-end]
 
-                            # If there are any trailing back slashes, remove them all
+                            # If there are any trailing back slashes, ; or >; remove them all
                             link = link.rstrip("\\")
+                            link = link.rstrip(">;")
+                            link = link.rstrip(";")
                             
                             # If there are any backticks in the URL, remove everything from the backtick onwards
                             link = link.split("`")[0]
@@ -2817,7 +2819,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             if re.search(r"^[^{}]*\}*$",link):
                                 link = link.split("}", 1)[0]
                             if re.search(r"^[^\[]]*\]*$",link):
-                                link = link.split("</", 1)[0]    
+                                link = link.split("]", 1)[0]    
                                 
                             # If there is a </ in the link then strip from that forward
                             if re.search(r"<\/", link):

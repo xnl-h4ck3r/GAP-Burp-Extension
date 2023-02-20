@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.1
+
+  - Changed
+
+    - Minor bug fix and improvement
+
 - v2.0
 
   - New
