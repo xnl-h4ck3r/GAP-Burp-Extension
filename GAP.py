@@ -48,7 +48,7 @@ WORDLIST_IMPORT_ERROR = ""
 try:
     from bs4 import BeautifulSoup, Comment
 except Exception as e:
-    WORDLIST_IMPORT_ERROR = "The following error occurred when importing beauttifulsoup4: " + str(e) + "\n"
+    WORDLIST_IMPORT_ERROR = "The following error occurred when importing beauttifulsoup4: " + str(e) + "\nPlease make sure you have followed the installation instructions on https://github.com/xnl-h4ck3r/GAP-Burp-Extension#installation\n"
     print("WARNING: Could not import beauttifulsoup4 for word mode: " + str(e))
     
 # Try to import html5lib as a parser for beautifulsoup4 because it's more accurate than the default html.parser
@@ -3142,6 +3142,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # If the Link Prefix option is checked, then prefix if the link doesn't have a domain
             if self.cbLinkPrefix.isSelected():
                 
+                url = url.encode(encoding="ascii",errors="ignore")
+                
                 # Get the netloc of the url and if blank, add the prefix
                 result = urlparse(url)
                 if result.netloc == "":
@@ -3179,6 +3181,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Determine whether to add a parameter to the parameter list, and also to the word list depending on ticked options
         """
         try:
+            param = param.encode(encoding="ascii",errors="ignore")
+
             # Add the parameter to the list
             self.param_list.add(param)
 
@@ -3196,6 +3200,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         try:
             include = True
+            
+            word = word.encode(encoding="ascii",errors="ignore")
             
             # Check it is a minimum of 3 characters long
             if len(word.strip()) < 3:

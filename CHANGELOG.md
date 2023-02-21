@@ -1,5 +1,12 @@
 ## Changelog
 
+- v2.2
+
+  - Changed
+
+    - Encode parameters, links and words to ASCII before adding them to lists so that no unicode errors occur when displaying them.
+    - Change error message for bs4 not installed to include a link to the installation instructions on github.
+
 - v2.1
 
   - Changed
