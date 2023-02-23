@@ -107,6 +107,8 @@ Below is an explanation of the output given when GAP has completed running.
 <h2>Potential Parameters</h2>
 <ul>
 <li><b>Potential parameters found</b> - This text are will show all unique potential parameters, one per line.</li>
+<li><b>Show params as query string with value</b> - This checkbox can be used to switch between the list of parameters and a concatenated query string with all parameters with a value given in the following text box.</li>
+<li><b>Param Value</b> - This defaults to XNLV and is a value that is used to create the concatenated query string, with each parameter given this value followed by a unique number of the parameter. This query string can be used to manually append to a URL and check for reflections.</li>
 </ul>
 <h2>Potential Links</h2>
 <ul>

@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.3
+
+  - New
+
+    - Re-introduce the option of viewing parameters in a concatenated query string. There is now a check box below the parameter list that can be used to switch views.
+
 - v2.2
 
   - Changed

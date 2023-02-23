@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.2"
+VERSION="2.3"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -145,6 +145,9 @@ DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
 CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif"
+
+# The default value (used until options are saved, or when the "Restore defaults" button is pressed) for the generated query string of all parameters.
+DEFAULT_QSV = "XNLV"
 
 # A list of files used in the Link Finding Regex. These are used in the 5th capturing group that aren't obvious links, but could be files
 LINK_REGEX_FILES = "php|php3|php5|asp|aspx|ashx|cfm|cgi|pl|jsp|jspx|json|js|action|html|xhtml|htm|bak|do|txt|wsdl|wadl|xml|xls|xlsx|bin|conf|config|bz2|bzip2|gzip|tar\.gz|tgz|log|src|zip|js\.map"
@@ -474,7 +477,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.btnChooseDir = JButton(
             "Choose...", actionPerformed=self.btnChooseDir_clicked
         )
-
+        self.cbShowQueryString = self.defineCheckBox(
+            "Show params as query string with value", False
+        )
+        self.cbShowQueryString.addItemListener(self.cbShowQueryString_clicked)
+        self.lblQueryStringVal = JLabel("Concatenated param value")
+        self.inQueryStringVal = JTextField(6)
+        
         # The Restore/Save section
         self.btnSave = JButton("Save options", actionPerformed=self.btnSave_clicked)
         self.btnRestoreDefaults = JButton(
@@ -519,7 +528,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.scroll_outParamList.setHorizontalScrollBarPolicy(
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
         )
-
+        self.outParamQuery = JTextArea(30, 100)
+        self.outParamQuery.setLineWrap(True)
+        self.outParamQuery.setEditable(False)
+        
         # Potential links found section
         self.lblLinkList = JLabel("Potential links found:")
         self.lblLinkList.setFont(FONT_HEADER)
@@ -726,6 +738,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             layout.createParallelGroup()
                             .addComponent(self.lblParamList)
                             .addComponent(self.scroll_outParamList)
+                            .addGroup(
+                                layout.createSequentialGroup()
+                                .addComponent(self.cbShowQueryString)
+                                .addComponent(
+                                    self.inQueryStringVal,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                )
+                            )
                         )
                         .addGroup(
                             layout.createParallelGroup()
@@ -899,6 +921,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 GroupLayout.DEFAULT_SIZE,
                                 GroupLayout.DEFAULT_SIZE,
                             )
+                            .addGroup(
+                                layout.createParallelGroup()
+                                .addComponent(self.cbShowQueryString)
+                                .addComponent(
+                                    self.inQueryStringVal,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                )
+                            )
                         )
                         .addGroup(
                             layout.createSequentialGroup()
@@ -978,19 +1010,27 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if self.cbParamsEnabled.isSelected():
             self.setEnabledParamOptions(True)
             self.lblParamList.visible = True
+            if self.cbShowQueryString.isSelected():
+                self.scroll_outParamList.setViewportView(self.outParamQuery)
+            else:
+                self.scroll_outParamList.setViewportView(self.outParamList)
             self.scroll_outParamList.visible = True
+            self.cbShowQueryString.visible = True
+            self.inQueryStringVal.visible = True
             # Also remove the word option "Include potential parameters"
             self.cbWordParams.visible = True
         else:
             self.setEnabledParamOptions(False)
             self.lblParamList.visible = False
             self.scroll_outParamList.visible = False
+            self.cbShowQueryString.visible = False
+            self.inQueryStringVal.visible = False
             # If no other mode is selected, reselect Links
             if not self.cbLinksEnabled.isSelected() and not self.cbWordsEnabled.isSelected():
                 self.cbLinksEnabled.setSelected(True)
             # Also show the word option "Include potential parameters"
             self.cbWordParams.visible = False
-
+            
     def cbLinksEnabled_clicked(self, e=None):
         """
         The event called when the "Links" check box is clicked
@@ -1016,7 +1056,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # If no other mode is selected, reselect Params
             if not self.cbParamsEnabled.isSelected() and not self.cbWordsEnabled.isSelected():
                 self.cbParamsEnabled.setSelected(True)
-
+            
     def cbWordsEnabled_clicked(self, e=None):
         """
         The event called when the "Words" check box is clicked
@@ -1119,6 +1159,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Reposition the display of the Link list to the start
         self.outLinkList.setCaretPosition(0)
 
+    def cbShowQueryString_clicked(self, e=None):
+        """
+        The event called when the "Show parameters as concatenated query string" checkbox is changed
+        """
+        # Show the parameter list or query string depending on the option selected
+        if self.cbShowQueryString.isSelected():
+            self.scroll_outParamList.setViewportView(self.outParamQuery)
+        else:
+            self.scroll_outParamList.setViewportView(self.outParamList)
+        
     def btnHelp_clicked(self, e=None):
         """
         The event when the help icon is pressed. Try to display the Help page, but if the URL can't be reached, show a 404 message
@@ -1199,6 +1249,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbParamCookie.setEnabled(enabled)
             self.cbParamXml.setEnabled(enabled)
             self.cbParamXmlAttr.setEnabled(enabled)
+            self.lblQueryStringVal.setEnabled(enabled)
+            self.cbShowQueryString.setEnabled(enabled)
+            self.inQueryStringVal.setEnabled(enabled)
             self.cbIncludeCommonParams.setEnabled(enabled)
             self.cbIncludePathWords.setEnabled(enabled)
             self.lblResponseParams.setEnabled(enabled)
@@ -1528,6 +1581,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.cbParamCookie.setSelected(config["paramCookie"])
                 self.cbParamXml.setSelected(config["paramXml"])
                 self.cbParamXmlAttr.setSelected(config["paramXmlAttr"])
+                try:
+                    self.inQueryStringVal.text = config["queryStringVal"]
+                except:
+                    self.inQueryStringVal.text = DEFAULT_QSV
                 self.cbIncludeCommonParams.setSelected(config["includeCommonParams"])
                 self.cbIncludePathWords.setSelected(config["includePathWords"])
                 self.cbParamJSONResponse.setSelected(config["paramJsonResponse"])
@@ -1579,6 +1636,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if self.inExclusions.text == "":
                 self.inExclusions.text = DEFAULT_EXCLUSIONS
             
+            # If the query string param value doesn't exist, set it to the default
+            if self.inQueryStringVal.text == "":
+                self.inQueryStringVal.text = DEFAULT_QSV
+            
             # if the stop words setting doesn't exist, set it to default
             if self.inStopWords.text == "":
                 self.inStopWords.text = DEFAULT_STOP_WORDS
@@ -1614,6 +1675,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamCookie.setSelected(False)
         self.cbParamXml.setSelected(False)
         self.cbParamXmlAttr.setSelected(False)
+        self.cbShowQueryString.setSelected(False)
+        self.inQueryStringVal.text = DEFAULT_QSV
         self.cbIncludeCommonParams.setSelected(True)
         self.cbIncludePathWords.setSelected(False)
         self.cbParamJSVars.setSelected(False)
@@ -2214,15 +2277,40 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.lblParamList.text = (
                     "Potential parameters found - UPDATING, PLEASE WAIT..."
                 )
-                self.outParamList.text = "\n".join(sorted(self.param_list))
+
+                # Loop through all parameters and build a list and query string
+                allParamsList = ""
+                allParamsQuery = ""
+                for param in sorted(self.param_list):
+                    self.checkIfCancel()
+                    try:
+                        if len(param) > 0:
+                            allParamsList = allParamsList + param + "\n"
+            
+                            # Build a list of parameters in a concatenated string with unique values
+                            allParamsQuery = allParamsQuery + param + "=" + self.inQueryStringVal.text + str(index) + "&"
+                            index += 1
+                    except Exception as e:
+                        self._stderr.println("displayParams 2")
+                        self._stderr.println(e)
+                        
+                if allParamsList == "":
+                    self.outParamList.text = "NO PARAMETERS FOUND"
+                    self.outParamQuery.text = "NO PARAMETERS FOUND"
+                else:
+                    self.outParamList.text = allParamsList
+                    self.outParamQuery.text = allParamsQuery.rstrip('&')
+            
+                # Show the version that is selected
+                if self.cbShowQueryString.isSelected():
+                    self.scroll_outParamList.setViewportView(self.outParamQuery)
+                else:
+                    self.scroll_outParamList.setViewportView(self.outParamList)                    
+                
                 index = len(self.param_list)
                 self.lblParamList.text = (
                     "Potential parameters found - " + str(index) + " unique:"
                 )
-
-                # If no parameters were found, write that in the text box
-                if self.outParamList.text == "":
-                    self.outParamList.text = "NO PARAMETERS FOUND"
 
             # Write the parameters to a file if required
             self.checkIfCancel()
@@ -2805,10 +2893,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     end = 1
                                 link = link[start:-end]
 
-                            # If there are any trailing back slashes, ; or >; remove them all
+                            # If there are any trailing back slashes, comma, ; or >; remove them all
                             link = link.rstrip("\\")
                             link = link.rstrip(">;")
                             link = link.rstrip(";")
+                            link = link.rstrip(",")
                             
                             # If there are any backticks in the URL, remove everything from the backtick onwards
                             link = link.split("`")[0]
