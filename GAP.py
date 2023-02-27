@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.3"
+VERSION="2.4"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -144,7 +144,10 @@ DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
-CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif"
+CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package"
+
+# A comma separated list of file extension exclusions used when the content-type isn't available. Files with these extensions will NOT be checked
+FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid"
 
 # The default value (used until options are saved, or when the "Restore defaults" button is pressed) for the generated query string of all parameters.
 DEFAULT_QSV = "XNLV"
@@ -1822,7 +1825,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     if self.includeLink(url):
 
                         # If it is content-type we want to process then carry on
-                        if self.includeContentType(header):
+                        if self.includeContentType(header, url):
 
                             # Only process links that are in scope
                             if self.isLinkInScope(url):
@@ -2799,7 +2802,33 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         return include
 
-    def includeContentType(self, header):
+    def includeFile(self, url):
+        """
+        Determine if the passed should be excluded by checking the list of exclusions
+        Returns whether the url should be included
+        """
+        try:
+            include = True
+            
+            # Set the file extension exclusions
+            lstFileExtExclusions = FILEEXT_EXCLUSIONS.split(",")
+            
+            # Go through FILEEXT_EXCLUSIONS and see if finding contains any. If not then continue
+            for exc in lstFileExtExclusions:
+                try:
+                    if url.endswith(exc.lower()):
+                        include = False
+                except Exception as e:
+                    self._stderr.println("ERROR includeFile 2")
+                    self._stderr.println(e)
+
+        except Exception as e:
+            self._stderr.println("ERROR includeFile 1")
+            self._stderr.println(e)
+
+        return include
+
+    def includeContentType(self, header, url):
         """
         Determine if the content type is in the exclusions
         Returns whether the content type is included
@@ -2814,6 +2843,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         except Exception as e:
             contentType = ""
 
+        # If the content type wasn't found, check against file extensions
+        if contentType == "":
+            url = url.split("?")[0].split("#")[0].split("/")[-1]
+            if url.find(".") > 0:
+                include = self.includeFile(url)
+            
         # Check the content-type against the comma separated list of exclusions
         lstExcludeContentType = CONTENTTYPE_EXCLUSIONS.split(",")
         include = True
@@ -2845,7 +2880,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         
         try:
             # If it is content-type we want to process then carry on
-            if self.includeContentType(header):
+            if self.includeContentType(header, responseUrl):
 
                 search = header.replace(" ","\n").encode("utf-8")+body.encode("utf-8")
                 try:
