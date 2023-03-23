@@ -1,5 +1,15 @@
 ## Changelog
 
+- v2.5
+
+  - New
+
+    - Get more potential parameters from responses based on patterns like `?param=` and `&param=`
+
+  - Changed
+
+    - Only get parameters from responses that don't have content types of file types in the given exclusions.
+
 - v2.4
 
   - New

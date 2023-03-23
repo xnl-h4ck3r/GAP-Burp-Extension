@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.4"
+VERSION="2.5"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -1917,17 +1917,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             if http_request:
                                 self.getParams(url, http_request)
 
-                            # Get the response parameters if requested
-                            if (
-                                self.cbParamJSONResponse.isSelected()
-                                or self.cbParamXMLResponse.isSelected()
-                                or self.cbParamInputField.isSelected()
-                                or self.cbParamJSVars.isSelected()
-                                or self.cbParamMetaName.isSelected()
-                            ):
-                                http_response = http_message.getResponse()
-                                if http_response:
-                                    self.getResponseParams(http_response)
+                            # Get parameters from the response
+                            http_response = http_message.getResponse()
+                            if http_response:
+                                self.getResponseParams(url, http_response)
                                     
                         # Get path words if requested and URL is in scope
                         if (self.cbParamsEnabled.isSelected() and self.cbIncludePathWords.isSelected()) or (self.cbWordsEnabled.isSelected() and self.cbWordPaths.isSelected()):
@@ -2605,7 +2598,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self._stderr.println("fileWriteWords 2")
                 self._stderr.println(e)
             
-    def getResponseParams(self, http_response):
+    def getResponseParams(self, responseUrl, http_response):
         """
         Get XML and JSON responses, extract keys and add them to the param_list
         Original contributor: @_pichik
@@ -2618,132 +2611,150 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             body_offset = response.getBodyOffset()
             response_string = self._helpers.bytesToString(http_response)
             body = response_string[body_offset:]
+            header = response_string[:body_offset]
 
-            # Get regardless of the content type
-            # Javascript variable could be in the html, script and even JSON response within a .js.map file
-            if self.cbParamJSVars.isSelected():
+            # If it is content-type we want to process then carry on
+            if self.includeContentType(header, responseUrl):
 
-                # Get inline javascript variables defined with "let"
+                # Get parameters from the response where they are like &PARAM= or ?PARAM=
                 try:
-                    js_keys = re.finditer(
-                        r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))",
-                        body,
-                        re.IGNORECASE,
-                    )
-                    for key in js_keys:
+                    possibleParams = re.finditer(r"(?<=[^\&])(\?|%3f|\&|%26|\&amp;)[a-z0-9_\-]{3,}=(?=[^=])", body, re.IGNORECASE)
+                    for key in possibleParams:
                         if key is not None and key.group() != "":
-                            self.addParameter(key.group().strip())
+                            param = key.group().strip().replace("=","").replace("?","").replace("%3f","").replace("%3F","").replace("%26","").replace("&amp;","").replace("&","")
+                            self.addParameter(param)
                 except Exception as e:
-                    self._stderr.println("getResponseParams 1")
+                    self._stderr.println("getResponseParams 9")
                     self._stderr.println(e)
+                
+                # If any of the options were picked, then carry on
+                if (self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected() or self.cbParamJSVars.isSelected() or self.cbParamMetaName.isSelected()):     
+                                    
+                    # Get regardless of the content type
+                    # Javascript variable could be in the html, script and even JSON response within a .js.map file
+                    if self.cbParamJSVars.isSelected():
 
-                # Get inline javascript variables defined with "var"
-                try:
-                    js_keys = re.finditer(
-                        r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))",
-                        body,
-                        re.IGNORECASE,
-                    )
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.addParameter(key.group().strip())
-                except Exception as e:
-                    self._stderr.println("getResponseParams 2")
-                    self._stderr.println(e)
-
-                # Get inline javascript constants
-                try:
-                    js_keys = re.finditer(
-                        r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))",
-                        body,
-                        re.IGNORECASE,
-                    )
-                    for key in js_keys:
-                        if key is not None and key.group() != "":
-                            self.addParameter(key.group().strip())
-                except Exception as e:
-                    self._stderr.println("getResponseParams 3")
-                    self._stderr.println(e)
-
-            # If mime type is JSON then get the JSON attributes
-            if response.getStatedMimeType() == "JSON":
-                if self.cbParamJSONResponse.isSelected():
-                    try:
-                        # Get only keys from json (everything between double quotes:)
-                        json_keys = re.findall(
-                            '"([a-zA-Z0-9$_\.-]*?)":', body, re.IGNORECASE
-                        )
-                        for key in json_keys:
-                            self.addParameter(key.strip())
-                    except Exception as e:
-                        self._stderr.println("getResponseParams 4")
-                        self._stderr.println(e)
-
-            # If the mime type is XML then get the xml keys
-            elif response.getStatedMimeType() == "XML":
-                if self.cbParamXMLResponse.isSelected():
-                    try:
-                        # Get XML attributes
-                        xml_keys = re.findall("<([a-zA-Z0-9$_\.-]*?)>", body)
-                        for key in xml_keys:
-                            self.addParameter(key.strip())
-                    except Exception as e:
-                        self._stderr.println("getResponseParams 5")
-                        self._stderr.println(e)
-
-            # If the mime type is HTML then get <input> name and id values, and meta tag names
-            elif response.getStatedMimeType() == "HTML":
-
-                if self.cbParamInputField.isSelected():
-                    # Get Input field name and id attributes
-                    try:
-                        html_keys = re.findall("<input(.*?)>", body)
-                        for key in html_keys:
-                            input_name = re.search(
-                                r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))",
-                                key,
+                        # Get inline javascript variables defined with "let"
+                        try:
+                            js_keys = re.finditer(
+                                r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))",
+                                body,
                                 re.IGNORECASE,
                             )
-                            if input_name is not None and input_name.group() != "":
-                                input_name_val = input_name.group()
-                                input_name_val = input_name_val.replace("=", "")
-                                input_name_val = input_name_val.replace('"', "")
-                                input_name_val = input_name_val.replace("'", "")
-                                self.addParameter(input_name_val.strip())
-                            input_id = re.search(
-                                r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))",
-                                key,
-                                re.IGNORECASE,
-                            )
-                            if input_id is not None and input_id.group() != "":
-                                input_id_val = input_id.group()
-                                input_id_val = input_id_val.replace("=", "")
-                                input_id_val = input_id_val.replace('"', "")
-                                input_id_val = input_id_val.replace("'", "")
-                                self.addParameter(input_id_val.strip())
-                    except Exception as e:
-                        self._stderr.println("getResponseParams 6")
-                        self._stderr.println(e)
+                            for key in js_keys:
+                                if key is not None and key.group() != "":
+                                    self.addParameter(key.group().strip())
+                        except Exception as e:
+                            self._stderr.println("getResponseParams 1")
+                            self._stderr.println(e)
 
-                if self.cbParamMetaName.isSelected():
-                    # Get meta tag name attribute
-                    try:
-                        meta_keys = re.findall("<meta(.*?)>", body)
-                        for key in meta_keys:
-                            meta_name = re.search(
-                                r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))",
-                                key,
+                        # Get inline javascript variables defined with "var"
+                        try:
+                            js_keys = re.finditer(
+                                r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))",
+                                body,
                                 re.IGNORECASE,
                             )
-                            if meta_name is not None and meta_name.group() != "":
-                                meta_name_val = meta_name.group()
-                                meta_name_val = meta_name_val.replace("=", "")
-                                meta_name_val = meta_name_val.replace('"', "")
-                                meta_name_val = meta_name_val.replace("'", "")
-                                self.addParameter(meta_name_val.strip())
-                    except Exception as e:
-                        self._stderr.println("getResponseParams 7")
-                        self._stderr.println(e)
+                            for key in js_keys:
+                                if key is not None and key.group() != "":
+                                    self.addParameter(key.group().strip())
+                        except Exception as e:
+                            self._stderr.println("getResponseParams 2")
+                            self._stderr.println(e)
+
+                        # Get inline javascript constants
+                        try:
+                            js_keys = re.finditer(
+                                r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))",
+                                body,
+                                re.IGNORECASE,
+                            )
+                            for key in js_keys:
+                                if key is not None and key.group() != "":
+                                    self.addParameter(key.group().strip())
+                        except Exception as e:
+                            self._stderr.println("getResponseParams 3")
+                            self._stderr.println(e)
+
+                    # If mime type is JSON then get the JSON attributes
+                    if response.getStatedMimeType() == "JSON":
+                        if self.cbParamJSONResponse.isSelected():
+                            try:
+                                # Get only keys from json (everything between double quotes:)
+                                json_keys = re.findall(
+                                    '"([a-zA-Z0-9$_\.-]*?)":', body, re.IGNORECASE
+                                )
+                                for key in json_keys:
+                                    self.addParameter(key.strip())
+                            except Exception as e:
+                                self._stderr.println("getResponseParams 4")
+                                self._stderr.println(e)
+
+                    # If the mime type is XML then get the xml keys
+                    elif response.getStatedMimeType() == "XML":
+                        if self.cbParamXMLResponse.isSelected():
+                            try:
+                                # Get XML attributes
+                                xml_keys = re.findall("<([a-zA-Z0-9$_\.-]*?)>", body)
+                                for key in xml_keys:
+                                    self.addParameter(key.strip())
+                            except Exception as e:
+                                self._stderr.println("getResponseParams 5")
+                                self._stderr.println(e)
+
+                    # If the mime type is HTML then get <input> name and id values, and meta tag names
+                    elif response.getStatedMimeType() == "HTML":
+
+                        if self.cbParamInputField.isSelected():
+                            # Get Input field name and id attributes
+                            try:
+                                html_keys = re.findall("<input(.*?)>", body)
+                                for key in html_keys:
+                                    input_name = re.search(
+                                        r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))",
+                                        key,
+                                        re.IGNORECASE,
+                                    )
+                                    if input_name is not None and input_name.group() != "":
+                                        input_name_val = input_name.group()
+                                        input_name_val = input_name_val.replace("=", "")
+                                        input_name_val = input_name_val.replace('"', "")
+                                        input_name_val = input_name_val.replace("'", "")
+                                        self.addParameter(input_name_val.strip())
+                                    input_id = re.search(
+                                        r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))",
+                                        key,
+                                        re.IGNORECASE,
+                                    )
+                                    if input_id is not None and input_id.group() != "":
+                                        input_id_val = input_id.group()
+                                        input_id_val = input_id_val.replace("=", "")
+                                        input_id_val = input_id_val.replace('"', "")
+                                        input_id_val = input_id_val.replace("'", "")
+                                        self.addParameter(input_id_val.strip())
+                            except Exception as e:
+                                self._stderr.println("getResponseParams 6")
+                                self._stderr.println(e)
+
+                        if self.cbParamMetaName.isSelected():
+                            # Get meta tag name attribute
+                            try:
+                                meta_keys = re.findall("<meta(.*?)>", body)
+                                for key in meta_keys:
+                                    meta_name = re.search(
+                                        r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))",
+                                        key,
+                                        re.IGNORECASE,
+                                    )
+                                    if meta_name is not None and meta_name.group() != "":
+                                        meta_name_val = meta_name.group()
+                                        meta_name_val = meta_name_val.replace("=", "")
+                                        meta_name_val = meta_name_val.replace('"', "")
+                                        meta_name_val = meta_name_val.replace("'", "")
+                                        self.addParameter(meta_name_val.strip())
+                            except Exception as e:
+                                self._stderr.println("getResponseParams 7")
+                                self._stderr.println(e)
         except Exception as e:
             self._stderr.println("getResponseParams 8")
             self._stderr.println(e)
