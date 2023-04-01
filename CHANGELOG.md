@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.6
+
+  - Changed
+
+    - For Parameters, Links and Words, check if the string being added contains any unicode characters. If it does, then URL encode the characters before adding them to the lists to display and output. This change prevents a number of errors output and also prevents Burp from freezing with certain conditions.
+
 - v2.5
 
   - New

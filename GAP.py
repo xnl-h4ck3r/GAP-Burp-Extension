@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.5"
+VERSION="2.6"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -44,6 +44,8 @@ import re
 import pickle
 import threading
 import time
+import urllib
+
 WORDLIST_IMPORT_ERROR = ""
 try:
     from bs4 import BeautifulSoup, Comment
@@ -2338,6 +2340,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 index = 0
                 for link in sorted(self.link_list):
 
+                    link = link
                     self.checkIfCancel()
 
                     # Check if the link may need to be excluded if it is not in scope
@@ -3274,10 +3277,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Add a link, and prefix if necessary
         """
         try:
+
+            # If the link contains any non ASCII characters, then url encode them
+            try:
+                url.encode("ascii")
+            except:
+                try:
+                    url = urllib.quote(url.encode('utf8'))
+                except:
+                    url = ""
+            
             # If the Link Prefix option is checked, then prefix if the link doesn't have a domain
             if self.cbLinkPrefix.isSelected():
-                
-                url = url.encode(encoding="ascii",errors="ignore")
                 
                 # Get the netloc of the url and if blank, add the prefix
                 result = urlparse(url)
@@ -3316,7 +3327,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Determine whether to add a parameter to the parameter list, and also to the word list depending on ticked options
         """
         try:
-            param = param.encode(encoding="ascii",errors="ignore")
+            # If the parameter contains any non ASCII characters, then url encode them
+            try:
+                param.encode("ascii")
+            except:
+                try:
+                    param = urllib.quote(param.encode('utf8'))
+                except:
+                    param = ""
 
             # Add the parameter to the list
             self.param_list.add(param)
@@ -3336,7 +3354,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         try:
             include = True
             
-            word = word.encode(encoding="ascii",errors="ignore")
+            # If the word contains any non ASCII characters, then url encode them
+            try:
+                word.encode("ascii")
+            except:
+                try:
+                    word = urllib.quote(word.encode('utf-8'))
+                except:
+                    word = ""
             
             # Check it is a minimum of 3 characters long
             if len(word.strip()) < 3:
