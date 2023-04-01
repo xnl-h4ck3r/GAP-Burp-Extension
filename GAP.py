@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.6"
+VERSION="2.7"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -138,6 +138,25 @@ COMMON_PARAMS = [
     "destination",
     "consumerUri",
     "add_imageurl"
+    "s", 
+    "search", 
+    "lang", 
+    "keyword", 
+    "query", 
+    "keywords", 
+    "year", 
+    "email", 
+    "type", 
+    "name", 
+    "p", 
+    "month", 
+    "list_type",  
+    "terms", 
+    "categoryid", 
+    "key", 
+    "l", 
+    "begindate",
+    "enddate"
 ]
 
 # A comma separated list of Link exclusions used when no options have been saved, or when the "Restore defaults" button is pressed
@@ -3140,6 +3159,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 
                 # Process all words found
                 for word in potentialWords:
+                    word = self.sanitizeWord(word)
                     self.checkIfCancel()
                     # Check if word is not already been found 
                     if word not in self.word_list:
@@ -3336,6 +3356,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 except:
                     param = ""
 
+            # If the parameter has a ? in it then just get the part after the ?, unless the ? is at the end
+            try:
+                param = param.split("?")[1]
+            except:
+                param = param.split("?")[0]
+                            
             # Add the parameter to the list
             self.param_list.add(param)
 
@@ -3346,6 +3372,32 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         except Exception as e:
             self._stderr.println("addParameter 1")
             self._stderr.println(e)
+    
+    def sanitizeWord(self, word):
+        """
+        URL encode any unicode characters in the word and also remove any unwanted characters
+        """
+        try:
+        # If the word contains any non ASCII characters, then url encode them
+            try:
+                word.encode("ascii")
+            except:
+                try:
+                    word = urllib.quote(word.encode('utf-8'))
+                except:
+                    word = ""
+            
+            if word != '':
+                word = word.replace('"','').replace('%22','')
+                word = word.replace('<','').replace('%3c','').replace('%3C','')
+                word = word.replace('>','').replace('%3e','').replace('%3E','')
+                word = word.replace('(','').replace('%28','')
+                word = word.replace(')','').replace('%28','')
+            
+            return word
+        except Exception as e:
+            self._stderr.println("sanitizeWord 1")
+            self._stderr.println(e)
             
     def addWord(self, word):
         """
@@ -3354,14 +3406,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         try:
             include = True
             
-            # If the word contains any non ASCII characters, then url encode them
-            try:
-                word.encode("ascii")
-            except:
-                try:
-                    word = urllib.quote(word.encode('utf-8'))
-                except:
-                    word = ""
+            word = self.sanitizeWord(word)
             
             # Check it is a minimum of 3 characters long
             if len(word.strip()) < 3:

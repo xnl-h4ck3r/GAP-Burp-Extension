@@ -1,5 +1,16 @@
 ## Changelog
 
+- v2.7
+
+  - New
+
+    - Sanitize words before adding them to the list, e.g. remove `"`,`%22`, `<`, `%3c`, etc.
+    - If a potential parameter has a `?` in it, then just get the value after the `?` as the parameter
+
+  - Changed
+
+    - Add more parameter names to the `COMMON_PARAMS` constant.
+
 - v2.6
 
   - Changed
