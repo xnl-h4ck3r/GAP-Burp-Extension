@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.7"
+VERSION="2.8"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -226,6 +226,9 @@ URL_KOFI_BUTTON = "https://storage.ko-fi.com/cdn/kofi2.png?v=3"
 # My Github URL
 URL_GITHUB = "https://github.com/xnl-h4ck3r"
 
+# Set the colour for Burp Orange
+COLOR_BURP_ORANGE = Color(0xE36B1E)
+        
 class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
     def registerExtenderCallbacks(self, callbacks):
         """
@@ -247,7 +250,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.dictResponseUrls = {}
         self.dictCheckedLinks = {}
         self.flagCANCEL = False
-
+        self.parentTabbedPane = None
+        self.tabDefaultColor = None
+        
         # Take the LINK_REGEX_FILES values and build a string of any values over 4 characters or has a number in it
         # This is used in the 4th capturing group Link Finding regex
         lstFileExt = LINK_REGEX_FILES.split("|")
@@ -281,7 +286,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 
         # Create the UI part of GAP
         self._createUI()
-
+              
         # Display welcome message
         print("GAP - Version " + VERSION)
         print("by @xnl_h4ck3r\n")
@@ -317,8 +322,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         FONT_GAP_MODE = Font(FONT_FAMILY, Font.BOLD, FONT_SIZE)
         FONT_LINK_OPTIONS = Font(FONT_FAMILY, Font.BOLD, FONT_SIZE - 2)
 
-        # Set the colour for Burp Orange
-        COLOR_BURP_ORANGE = Color(0xE36B1E)
         # Set colour for warning messages
         COLOR_WARNING = Color(0xE3251E)
         
@@ -1014,6 +1017,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         The event called when the Logo image is clicked. Open a browser tab to Github page
         """
         try:
+            self.setTabDefaultColor()
             Desktop.getDesktop().browse(URI(URL_GITHUB))
         except:
             pass
@@ -1023,6 +1027,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         The event called when the KoFi button is clicked. Open a browser tab to KoFi page
         """
         try:
+            self.setTabDefaultColor()
             Desktop.getDesktop().browse(URI(URL_KOFI))
         except:
             pass
@@ -1031,6 +1036,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Parameters" check box is clicked
         """
+        self.setTabDefaultColor()
         if self.cbParamsEnabled.isSelected():
             self.setEnabledParamOptions(True)
             self.lblParamList.visible = True
@@ -1059,6 +1065,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Links" check box is clicked
         """
+        self.setTabDefaultColor()
         if self.cbLinksEnabled.isSelected():
             self.setEnabledLinkOptions(True)
             self.lblLinkList.visible = True
@@ -1085,6 +1092,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Words" check box is clicked
         """
+        self.setTabDefaultColor()
         if self.cbWordsEnabled.isSelected():
             self.setEnabledWordOptions(True)
             self.lblWordList.visible = True
@@ -1129,6 +1137,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Link prefix" checkbox is changed
         """
+        self.setTabDefaultColor()
         # Only enable the Link Prefix field and Un_Prefixed checkbox if the Link Prefix checkbox is selected
         if self.cbLinkPrefix.isSelected():
             self.inLinkPrefix.setEnabled(True)
@@ -1141,6 +1150,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Auto save output directory" checkbox is changed
         """
+        self.setTabDefaultColor()
         # Only enable the Save Directory field if the Save checkbox is selected
         if self.cbSaveFile.isSelected():
             self.inSaveDir.setEnabled(True)
@@ -1187,6 +1197,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Show parameters as concatenated query string" checkbox is changed
         """
+        self.setTabDefaultColor()
         # Show the parameter list or query string depending on the option selected
         if self.cbShowQueryString.isSelected():
             self.scroll_outParamList.setViewportView(self.outParamQuery)
@@ -1197,6 +1208,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event when the help icon is pressed. Try to display the Help page, but if the URL can't be reached, show a 404 message
         """
+        self.setTabDefaultColor()
         jpane = JEditorPane()
         jpane.setEditable(False)
         try:
@@ -1230,6 +1242,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         The event called when the "Choose..." directory button is clicked for the auto save path
         """
+        self.setTabDefaultColor()
         # Show the directory choosing dialog box
         try:
             parentFrame = JFrame()
@@ -1374,6 +1387,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         if _debug:
             print("btnFilter_clicked started")
+        self.setTabDefaultColor()
         if self.btnFilter.text == "Apply filter":
 
             # Clear the current link list and filtered list
@@ -1485,11 +1499,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         # Position the links output at the start again
         self.outLinkList.setCaretPosition(0)
-
+                
     def btnSave_clicked(self, e=None):
         """
         The event called when the "Save options" button is clicked
         """
+        self.setTabDefaultColor()
         self.saveConfig()
 
     def checkLinkPrefix(self):
@@ -1678,6 +1693,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         The event called when the "Restore defaults" button is clicked.
         Restore the default config options
         """
+        self.setTabDefaultColor()
+        
         # Re-enable all Param options
         self.setEnabledParamOptions(True)
 
@@ -1744,7 +1761,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         if _debug:
             print("menuGAP_clicked started")
-
+        self.setTabDefaultColor()
         try:
             # Check the words max length in case we need to change it first
             self.checkMaxWordsLen()
@@ -1864,6 +1881,80 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self._stderr.println("getSiteMapLinks 1")
             self._stderr.println(e)
 
+    def getTabIndex(self):
+        """
+        Get the Index of the GAP tab
+        """
+        try:
+            tabIndex = 0
+            try:
+                while tabIndex < self.parentTabbedPane.getTabCount():
+                    if self.parentTabbedPane.getTitleAt(tabIndex).startswith("GAP"):
+                        break
+                    tabIndex = tabIndex + 1
+                return tabIndex
+            except:
+                return -1
+        except Exception as e:
+            self._stderr.println("getTabColor 1")
+            self._stderr.println(e)
+    
+    def getTabColor(self):
+        """
+        Get the color of the GAP Tab title
+        """
+        try:
+            if self.parentTabbedPane is None:
+                self.parentTabbedPane = self.getUiComponent().getParent()
+            if self.parentTabbedPane is not None:
+                tabIndex = self.getTabIndex()  
+                if tabIndex >= 0:              
+                    return self.parentTabbedPane.getForegroundAt(tabIndex)
+        except Exception as e:
+            self._stderr.println("getTabColor 1")
+            self._stderr.println(e)
+    
+    def setTabDefaultColor(self):
+        """
+        Change the color of the GAP Tab to the default color
+        """
+        try:
+            self.setTabColor(self.tabDefaultColor)
+        except:
+            pass
+        
+    def setTabColor(self, color):
+        """
+        Change the color of the GAP Tab title
+        """
+        try:
+            if self.parentTabbedPane is None:
+                self.parentTabbedPane = self.getUiComponent().getParent()
+            if self.parentTabbedPane is not None:
+                tabIndex = self.getTabIndex()  
+                if tabIndex >= 0:              
+                    self.parentTabbedPane.setBackgroundAt(tabIndex, color)
+        except Exception as e:
+            self._stderr.println("setTabColor 1")
+            self._stderr.println(e)
+    
+    def setTabTitle(self, title):
+        """
+        Change the color of the GAP Tab title
+        """
+        try:
+            if self.parentTabbedPane is None:
+                self.parentTabbedPane = self.getUiComponent().getParent()
+            if self.parentTabbedPane is not None:
+                tabIndex = self.getTabIndex()  
+                if tabIndex >= 0:              
+                    self.parentTabbedPane.setTitleAt(tabIndex, title)
+                else:
+                    self.parentTabbedPane.setTitleAt(tabIndex, "GAP")
+        except Exception as e:
+            self._stderr.println("setTabTitle 1")
+            self._stderr.println(e)
+        
     def doEverything(self):
         """
         The methods run in a separate thread when the GAP menu item has been clicked.
@@ -1872,6 +1963,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         if _debug:
             print("doEverything started")
+        
+        self.setTabTitle("GAP*")
+        
+        # Get the parentTab if it hasn't been set yet
+        if self.parentTabbedPane is None:
+            self.parentTabbedPane = self.getUiComponent().getParent()
+            # Also get the default color of the tab text
+            self.tabDefaultColor = self.getTabColor()
+        else:
+            # Set the tab to the default color
+            self.setTabDefaultColor()
 
         # If the user selected the "Include the list of common params in list" option, loads
         # the params in the COMMON_PARAMS value to appear in the final list
@@ -2025,17 +2127,23 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.displayResults(filepath)
 
             # Change button to completed
+            self.setTabColor(COLOR_BURP_ORANGE)
+            self.setTabTitle("GAP")
             self.checkIfCancel()
             self.btnCancel.setEnabled(False)
             self.btnCancel.setText("   COMPLETED    ")
             self.progBar.setString("100%")
             self.progStage.text = ""
+            if self.getTabIndex() == self.parentTabbedPane.getSelectedIndex():
+                time.sleep(0.08)
+                self.setTabDefaultColor()
 
         except CancelGAPRequested as e:
             # The user pressed the CANCEL GAP button
             self.flagCANCEL = False
             if _debug:
                 print("doEverything GAP cancelled")
+            self.setTabTitle("GAP")
             self.btnCancel.setEnabled(False)
             self.btnCancel.setText("   CANCELLED    ")
             if (
@@ -2076,7 +2184,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         self.flagCANCEL = True
         self.btnCancel.setText(" CANCELLING...  ")
-
+        
     def getParams(self, url, http_request):
         """
         Get all the parameters and add them to the param_list set.
@@ -2357,6 +2465,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.outLinkList.text = ""
                 self.countLinkUnique = 0
                 index = 0
+                print("HERE 1 - " + str(len(self.link_list)))
                 for link in sorted(self.link_list):
 
                     link = link
@@ -2384,7 +2493,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 if _debug:
                     print("displayLinks links found " + str(index))
-
+                print("HERE 2 - " + str(len(self.linkUrl_list)))
                 for link in sorted(self.linkUrl_list):
 
                     self.checkIfCancel()
@@ -2410,7 +2519,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 if _debug:
                     print("displayLinks links with URL done")
-
+                print("HERE 3")
                 # Show the links (and Origin Endpoints if the checkbox is ticked)
                 if self.cbShowLinkOrigin.isSelected():
                     if self.cbInScopeOnly.isSelected():
@@ -2425,6 +2534,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 self.countLinkUnique = str(index)
 
+                print("HERE 4")
                 if str(self.countLinkUnique) == str(self.outLinkList.text.count("\n")):
                     self.lblLinkList.text = (
                         "Potential links found - "

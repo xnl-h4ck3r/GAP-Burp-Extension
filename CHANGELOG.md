@@ -1,5 +1,11 @@
 ## Changelog
 
+- v2.8
+
+  - New
+
+    - When GAP is searching, the tab caption will say **GAP\*** instead of **GAP**. Also, when complete, and the user is not on the GAP tab, the title will show **GAP** in Burp Orange. The text is reset to default colour when another target is searched of if any options are changed.
+
 - v2.7
 
   - New
