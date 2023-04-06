@@ -69,8 +69,9 @@ These are potential parameters that can be found in the HTTP responses. These ar
 When the GAP Mode of Links is selected then GAP will try to find possible links based on the following. Also, only requests of a certain <i>Content-Type</i> are checked for potential links. This is determined by the constant <code>CONTENTTYPE_EXCLUSIONS</code> in the code (these are types such as images, video, audio, fonts, etc.)
 
 <ul>
-<li><b>Link prefix</b> - If checked, the value in the text field will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code>
-<li><b>Also include un-prefixed links</b> - If the <b>Link prefix</b> option is checked then this option can be checked to include the original un-prefixed link in addition to the prefixed link.
+<li><b>Prefix with selected target(s)</b> - If checked, the root of each target selected in the Site Map will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code></li>
+<li><b>Prefix with link(s)</b> - If checked, the value(s) in the text field will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code>. Multiple domains can be provided, separated by a semicolon, e.g. <code>http://example.com;https://sub.example.com</code></li>
+<li><b>Also include un-prefixed links</b> - If the <b>Prefix with selected target(s)</b> or <b>Prefix with link(s)</b >option is checked then this option can be checked to include the original un-prefixed link in addition to the prefixed link.</li>
 <li><b>Include site map endpoints in link list?</b> - This will include endpoints from the Burp Site map (what was selected) in the potential Link list, if they are in scope.</li>
 <li><b>Link exclusions</b> - The field contains a comma separated list of values. If any of these values exists in a potential link found, then it will be excluded from the final list. There is a initial default list determined by the <code>DEFAULT_EXCLUSIONS</code> constant, but you can change this and save your settings.</li>
 </ul>

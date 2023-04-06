@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="2.8"
+VERSION="2.9"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -252,6 +252,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.flagCANCEL = False
         self.parentTabbedPane = None
         self.tabDefaultColor = None
+        self.linkPrefixColor = None
         
         # Take the LINK_REGEX_FILES values and build a string of any values over 4 characters or has a number in it
         # This is used in the 4th capturing group Link Finding regex
@@ -322,9 +323,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         FONT_GAP_MODE = Font(FONT_FAMILY, Font.BOLD, FONT_SIZE)
         FONT_LINK_OPTIONS = Font(FONT_FAMILY, Font.BOLD, FONT_SIZE - 2)
 
-        # Set colour for warning messages
-        COLOR_WARNING = Color(0xE3251E)
-        
         # Links section
         self.lblLinkOptions = JLabel("Links mode options:")
         self.lblLinkOptions.setFont(FONT_HEADER)
@@ -337,6 +335,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         # Request parameter section
         self.lblRequestParams = JLabel("REQUEST PARAMETERS")
+        self.lblRequestParams.setToolTipText("These are identified by Burp itself through the API IParameter interface")
         fnt = self.lblRequestParams.getFont()
         self.lblRequestParams.setFont(fnt.deriveFont(fnt.getStyle() | Font.BOLD))
         self.cbParamUrl = self.defineCheckBox("Query string params")
@@ -355,6 +354,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         # Response parameter section
         self.lblResponseParams = JLabel("RESPONSE PARAMETERS")
+        self.lblResponseParams.setToolTipText("These are identified by GAP, mainly with regular expressions")
         fnt = self.lblResponseParams.getFont()
         self.lblResponseParams.setFont(fnt.deriveFont(fnt.getStyle() | Font.BOLD))
         self.cbParamJSONResponse = self.defineCheckBox("JSON params", False)
@@ -490,13 +490,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbSiteMapEndpoints = self.defineCheckBox(
             "Include site map endpoints in link list?", False
         )
-        self.cbLinkPrefix = self.defineCheckBox("Link prefix:")
+        self.cbLinkPrefix = self.defineCheckBox("Prefix with link(s):")
         self.cbLinkPrefix.addItemListener(self.cbLinkPrefix_clicked)
         self.inLinkPrefix = JTextField(30,actionPerformed=self.checkLinkPrefix)
+        self.inLinkPrefix.setToolTipText("You can provide multiple links by separating with a semicolon, e.g. https://example.com;https://example.co.uk")
+        self.cbLinkPrefixScope = self.defineCheckBox("Prefix with selected Target(s)")
+        self.cbLinkPrefixScope.addItemListener(self.cbLinkPrefixScope_clicked)
+        self.cbLinkPrefixScope.setSelected(False)
         self.cbUnPrefixed = self.defineCheckBox("Also include un-prefixed links?")
-        self.lblPrefixWarning = JLabel("Warning: Invalid prefix")
-        self.lblPrefixWarning.setVisible(False)
-        self.lblPrefixWarning.setForeground(COLOR_WARNING)
         self.cbSaveFile = self.defineCheckBox("Auto save output to directory")
         self.cbSaveFile.addItemListener(self.cbSaveFile_clicked)
         self.inSaveDir = JTextField(30)
@@ -704,9 +705,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.lblLinkOptions)
                     .addGroup(
                         layout.createSequentialGroup()
+                        .addComponent(self.cbLinkPrefixScope)
                         .addComponent(self.cbLinkPrefix)
                         .addComponent(self.inLinkPrefix)
-                        .addComponent(self.lblPrefixWarning)
                     )
                     .addGroup(
                         layout.createSequentialGroup()
@@ -874,12 +875,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     .addComponent(self.lblLinkOptions)
                     .addGroup(
                         layout.createParallelGroup()
+                        .addComponent(self.cbLinkPrefixScope)
                         .addComponent(self.cbLinkPrefix)
                         .addComponent(self.inLinkPrefix,
                             GroupLayout.PREFERRED_SIZE,
                             GroupLayout.PREFERRED_SIZE,
                             GroupLayout.PREFERRED_SIZE,)
-                        .addComponent(self.lblPrefixWarning)
                     )
                     .addGroup(
                         layout.createParallelGroup()
@@ -1142,9 +1143,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if self.cbLinkPrefix.isSelected():
             self.inLinkPrefix.setEnabled(True)
             self.cbUnPrefixed.setEnabled(True)
+            self.checkLinkPrefix()
         else:
             self.inLinkPrefix.setEnabled(False)
-            self.cbUnPrefixed.setEnabled(False)
+            if not self.cbLinkPrefixScope.isSelected():
+                self.cbUnPrefixed.setEnabled(False)
             
     def cbSaveFile_clicked(self, e=None):
         """
@@ -1323,7 +1326,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.inExclusions.setEnabled(enabled)
             self.cbLinkPrefix.setEnabled(enabled)
             self.inLinkPrefix.setEnabled(enabled)
-            self.cbUnPrefixed.setEnabled(enabled)
+            self.cbLinkPrefixScope.setEnabled(enabled)
+            if enabled:
+                if self.cbLinkPrefix.isSelected() or self.cbLinkPrefixScope.isSelected():
+                    self.cbUnPrefixed.setEnabled(True)
+            else:
+                 self.cbUnPrefixed.setEnabled(False)
             self.lblExclusions.setEnabled(enabled)
             self.inExclusions.setEnabled(enabled)
             if self.cbParamsEnabled.isSelected():
@@ -1507,22 +1515,59 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.setTabDefaultColor()
         self.saveConfig()
 
-    def checkLinkPrefix(self):
+    def cbLinkPrefixScope_clicked(self, e=None):
+        """
+        The event called when the "use selected target(s)" checkbox is changed
+        """
+        self.setTabDefaultColor()
+        # Only enable the Link Prefix field and Un_Prefixed checkbox if the Link Prefix checkbox is selected
+        if self.cbLinkPrefixScope.isSelected():
+            self.cbUnPrefixed.setEnabled(True)
+        else:
+            if not self.cbLinkPrefix.isSelected():
+                self.cbUnPrefixed.setEnabled(False)
+            
+    def checkLinkPrefix(self, e=None):
         """
         Check the Link Prefix is a valid URL
         """
         try:
             invalid = False
+            self.inLinkPrefix.text = self.inLinkPrefix.text.strip()
+            
+            # If the last character is a ; then strip it
+            if self.inLinkPrefix.text.endswith(";"):
+                self.inLinkPrefix.text = self.inLinkPrefix.text[:-1]
+            
+            # Check if the links are valid    
             if self.cbLinkPrefix.isSelected():
-                result = urlparse(self.inLinkPrefix.text)
-                if result.netloc == "":
-                    # If prefix doesn't start with // then add http://
-                    if result.scheme == "" and self.inLinkPrefix.text[:2] != "//":
-                        self.inLinkPrefix.text = "http://" + self.inLinkPrefix.text
-                    invalid = True
-        
+                fixedLinks = ""
+                for link in self.inLinkPrefix.text.split(";"):
+                    # If the last character is a / then strip it
+                    if link.endswith("/"):
+                        link = link[:-1]
+                    result = urlparse(link)
+                    if result.netloc == "":
+                        # If prefix doesn't start with // then add http://
+                        if result.scheme == "" and link[:2] != "//":
+                            link = "http://" + link
+                    if fixedLinks == "":
+                        fixedLinks = link
+                    else:
+                        fixedLinks = fixedLinks + ";" + link
+                    if re.search(r'^(https?:)\/\/.[^\.]*\.[a-z]{2,}[^\?#]*$', link, flags=re.IGNORECASE) is None:
+                        invalid = True
+                if not invalid:
+                    self.inLinkPrefix.text = fixedLinks
+                
             # Set visibility of warning
-            self.lblPrefixWarning.setVisible(invalid)
+            if self.linkPrefixColor is None:
+                self.linkPrefixColor = self.inLinkPrefix.getForeground()
+            if invalid:
+                self.inLinkPrefix.setForeground(Color.RED)
+            else:
+                if self.linkPrefixColor is not None:
+                    self.inLinkPrefix.setForeground(self.linkPrefixColor)
         except Exception as e:
             self._stderr.println("checkLinkPrefix 1")
             self._stderr.println(e)
@@ -1590,6 +1635,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             "linksEnabled": self.cbLinksEnabled.isSelected(),
             "linkPrefixChecked": self.cbLinkPrefix.isSelected(),
             "linkPrefix": self.inLinkPrefix.text,
+            "linkPrefixScopeChecked": self.cbLinkPrefixScope.isSelected(),
             "unprefixed": self.cbUnPrefixed.isSelected(),
             "wordsEnabled": self.cbWordsEnabled.isSelected(),
             "wordPlurals": self.cbWordPlurals.isSelected(),
@@ -1649,6 +1695,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.inLinkPrefix.text = config["linkPrefix"]
                 except:
                     self.inLinkPrefix.text = DEFAULT_LINK_PREFIX
+                self.cbLinkPrefixScope.setSelected(config["linkPrefixScopeChecked"])
                 self.cbUnPrefixed.setSelected(config["unprefixed"])
                 self.cbWordsEnabled.setSelected(config["wordsEnabled"])
                 self.cbWordPlurals.setSelected(config["wordPlurals"])
@@ -1733,6 +1780,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbLinkPrefix.setSelected(False)
         self.cbUnPrefixed.setSelected(False)
         self.inLinkPrefix.text = DEFAULT_LINK_PREFIX
+        self.cbLinkPrefixScope.setSelected(False)
         self.cbWordsEnabled.setSelected(True)
         self.cbWordPlurals.setSelected(True)
         self.cbWordPaths.setSelected(False)
@@ -1935,8 +1983,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 if tabIndex >= 0:              
                     self.parentTabbedPane.setBackgroundAt(tabIndex, color)
         except Exception as e:
-            self._stderr.println("setTabColor 1")
-            self._stderr.println(e)
+            pass
     
     def setTabTitle(self, title):
         """
@@ -2465,7 +2512,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.outLinkList.text = ""
                 self.countLinkUnique = 0
                 index = 0
-                print("HERE 1 - " + str(len(self.link_list)))
                 for link in sorted(self.link_list):
 
                     link = link
@@ -2493,7 +2539,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 if _debug:
                     print("displayLinks links found " + str(index))
-                print("HERE 2 - " + str(len(self.linkUrl_list)))
                 for link in sorted(self.linkUrl_list):
 
                     self.checkIfCancel()
@@ -2519,7 +2564,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 if _debug:
                     print("displayLinks links with URL done")
-                print("HERE 3")
+
                 # Show the links (and Origin Endpoints if the checkbox is ticked)
                 if self.cbShowLinkOrigin.isSelected():
                     if self.cbInScopeOnly.isSelected():
@@ -2534,7 +2579,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 self.countLinkUnique = str(index)
 
-                print("HERE 4")
                 if str(self.countLinkUnique) == str(self.outLinkList.text.count("\n")):
                     self.lblLinkList.text = (
                         "Potential links found - "
@@ -3417,36 +3461,50 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 except:
                     url = ""
             
-            # If the Link Prefix option is checked, then prefix if the link doesn't have a domain
-            if self.cbLinkPrefix.isSelected():
+            allUrls = set()
+            # Get the netloc of the url and if blank, add the prefix
+            result = urlparse(url)
+            if result.netloc == "":
+                # If the "Include un-prefixed links" option is checked,add the original first
+                if self.cbUnPrefixed.isSelected():
+                    if origin == "":                                      
+                        # Add the link to the list
+                        self.link_list.add(url)
+                    else:
+                        # Add the link and origin to the list
+                        self.linkUrl_list.add(url + "  [" + origin + "]")
                 
-                # Get the netloc of the url and if blank, add the prefix
-                result = urlparse(url)
-                if result.netloc == "":
-                    # If the "Include un-prefixed links" option is checked,add the original first
-                    if self.cbUnPrefixed.isSelected():
-                        if origin == "":                                      
-                            # Add the link to the list
-                            self.link_list.add(url)
-                        else:
-                            # Add the link and origin to the list
-                            self.linkUrl_list.add(url + "  [" + origin + "]")
+                # If the url doesn't start with a / then prefix it first
+                if url[:1] != "/":
+                    url = "/" + url
                     
-                    # If the link prefix ends in / then remove it
-                    if self.inLinkPrefix.text[-1] == "/":
-                        self.inLinkPrefix.text = self.inLinkPrefix.text[:-1]
-                    # If the url doesn't start with a / then prefix it first
-                    if url[:1] != "/":
-                        url = "/" + url
-                    # Prefix with the link prefix given
-                    url = self.inLinkPrefix.text + url
-
-            if origin == "":                                      
-                # Add the link to the list
-                self.link_list.add(url)
+                # If the Link Prefix option is checked, then prefix if the link doesn't have a domain
+                if self.cbLinkPrefix.isSelected() or self.cbLinkPrefixScope.isSelected():
+                    if self.cbLinkPrefix.isSelected():
+                        
+                        # Prefix each entry sepatated with a ;
+                        for link in self.inLinkPrefix.text.split(";"):
+                            allUrls.add(link + url)
+                                
+                    # If specified to use targets, then add for all of those
+                    if self.cbLinkPrefixScope.isSelected():
+                        
+                        # Prefix with each root    
+                        for root in self.roots:
+                            allUrls.add(root + url)
+                else:               
+                    allUrls.add(url)
             else:
-                # Add the link and origin to the list
-                self.linkUrl_list.add(url + "  [" + origin + "]")
+                allUrls.add(url)
+            
+            # Add all necessary prefixes
+            for u in allUrls:
+                if origin == "":                                      
+                    # Add the link to the list
+                    self.link_list.add(u)
+                else:
+                    # Add the link and origin to the list
+                    self.linkUrl_list.add(u + "  [" + origin + "]")
                 
         except Exception as e:
             self._stderr.println("addLink 1")

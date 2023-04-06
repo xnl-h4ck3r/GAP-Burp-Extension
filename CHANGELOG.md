@@ -1,5 +1,16 @@
 ## Changelog
 
+- v2.9
+
+  - New
+
+    - Add new checkbox "Prefix with selected Target(s)". If selected, any links found that don't have a domain will be prefixed with each target root that was selected in the Site Map when running GAP.
+    - Added some tool tips
+
+  - Changed
+
+    - The "Prefix with links(s)" (was previously called "Link Prefix") can now have multiple links separated by a semicolon. If a schema is left off a link then it will be added on. If the field has invalid values, the text will be displayed in red, indicating it needs to be fixed. Links will be output with each prefix
+
 - v2.8
 
   - New
