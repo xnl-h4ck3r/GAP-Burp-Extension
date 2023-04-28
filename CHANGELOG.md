@@ -1,5 +1,27 @@
 ## Changelog
 
+- v3.0
+
+  - New
+
+    - Add `Show origin endpoint` filter to Parameters and save as part of config when the **Save options** button is pressed.
+    - If the `Auto save output to directory` option is checked, then files are written as follows:
+      - Create a sub folder for each root in the target site that was selected in Site Map
+      - Create a file in the main folder with the name of the Burp project and timestamp, e.g. if the project is called `target`, the files might be `target_20230416_133700_links.txt`, `target_20230416_133700_parans.txt` and `target_20230416_133700_words.txt` where `20230416` is the current date in `YYYYMMDD` format and `133700` is the current time in `HHMMSS` format. These files will contain what was found for ALL roots selected.
+      - Within each sub folder, the files will only contain findings for that particular root. If there are no findings for a mode, then a file will not be created for that mode.
+    - If the `Include common parameters` option is checked and the Parameter `Show origin endpoint` is checked, the common parameters are displayed and written to file with `[GAP]` instead of a Link where the parameter was found.
+
+  - Changed
+    - You can now select sub folders, or specific requests, from the Site Map to process with GAP.
+    - The `Show origin endpoint` option for Parameters and Links, and the `In scope only` option are applied to what is displayed AND what is written to file.
+    - If a link is found that has a different scheme than http or https, the `URL(link).getHost()` method returns blank. This previously resulted in the link not being checked if it was in scope and incorrectly included. This has been fixed.
+    - Make changes to the functions that display links, parameters and words to improve speed and use less memory.
+    - Parameters and words from path words were not correctly checked whether they are in scope or not. This has been fixed.
+    - If a link has `\s` or `\S` in it, don't include as it's most likely a regex string, not a link.
+    - If one mode finishes before others are, allow any filters to be used on the finished panels, even if the others aren't complete.
+    - If Origin is written to the Links or Params file, only separate the URL and \[ORIGIN\] with one space. Two spaces are used in the UI to make it easier to view.
+    - Suppress warnings from the beautifulsoup4 library.
+
 - v2.9
 
   - New

@@ -1,6 +1,6 @@
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/title.png"></center>
 
-## About - v2.9
+## About - v3.0
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on, and produces a target specific wordlist to use for fuzzing.
 The full Help documentation can be found [here] (https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
@@ -34,9 +34,7 @@ The Words mode uses the `beautifulsoup4` library and this can be quite slow, so 
 
 ## TODO
 
-1. Save output in a directory folder per domain, and add timestamp to output files.
-2. Use an alternative to `beautifulsoup4` that is faster to parse responses for Words.
-3. Provide an option to see Origin Endpoint for parameters (only where it is appropriate for the parameter type).
+- Use an alternative to `beautifulsoup4` that is faster to parse responses for Words.
 
 Good luck and good hunting!
 If you really love the tool (or any others), or they helped you find an awesome bounty, consider [BUYING ME A COFFEE!](https://ko-fi.com/xnlh4ck3r) ☕ (I could use the caffeine!)
