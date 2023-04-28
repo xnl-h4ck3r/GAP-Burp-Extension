@@ -1,5 +1,11 @@
 ## Changelog
 
+- v3.1
+
+  - Changed
+
+    - A small fix to ensure that if the `Prefix with selected Target(s)` option is checked that output links do not have `//` after the host
+
 - v3.0
 
   - New

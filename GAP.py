@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="3.0"
+VERSION="3.1"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -3855,7 +3855,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         
                         # Prefix with each root    
                         for root in self.roots:
-                            allUrls.add(root + url)
+                            allUrls.add(root.rstrip("/") + url)
                 else:               
                     allUrls.add(url)
             else:
