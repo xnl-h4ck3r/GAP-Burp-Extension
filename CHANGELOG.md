@@ -1,5 +1,14 @@
 ## Changelog
 
+- v3.2
+
+  - Changed
+
+    - Amend the main link finding regex string to avoid catastrophic backtracking errors that freeze the search and break GAP.
+    - Fix a bug where the links `Show origin endpoint` and `In scope only` options aren't enabled in some circumstances.
+    - Ensure output files are closed properly after writing.
+    - Fix a bug where the `Show origin` of the wrong type was checked when writing output files.
+
 - v3.1
 
   - Changed

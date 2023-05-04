@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="3.1"
+VERSION="3.2"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -277,7 +277,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     )
 
         # Compile the link regex
-        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,}\.[a-zA-Z]{2,}|localhost)[^\"'\n\s]{0,})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(?<=\=)\s*\/[0-9a-zA-Z]+[^>\n]*", re.IGNORECASE)
+        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(?<=\=)\s*\/[0-9a-zA-Z]+[^>\n]*", re.IGNORECASE)
         
         # Regex for checking Burp url when checking if in scope
         self.REGEX_BURPURL = re.compile(r"^(https?:)?\/\/([-a-zA-Z0-9_]+\.)?[-a-zA-Z0-9_]+\.[-a-zA-Z0-9_\.\?\#\&\=]+$", re.IGNORECASE)
@@ -2038,7 +2038,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.btnCancel.setText("   CANCEL GAP   ")
             self.btnCancel.setVisible(True)
             self.btnCancel.setEnabled(True)
-
+            self.progStage.setVisible(False)
+            self.progBar.setVisible(False)
+            
             # Before starting the search, update the text boxes depending on the options selected
             if self.cbParamsEnabled.isSelected():
                 self.lblParamList.text = "Potential params found - SEARCHING"
@@ -2227,11 +2229,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         try:
             http_messages = self.context.getSelectedMessages()
             for http_message in http_messages:
-                # Need to strip the port from the URL before searching because it _callbacks.getSiteMap fails with older versions of Burp if you don't
-                #result = urlparse(http_message.getUrl().toString())
-                #root = result.scheme + "://" + result.netloc.split(":")[0]
                 if http_message.getUrl() is not None:
-                    self.roots.add(http_message.getUrl().toString())
+                    # Need to strip the port from the URL before searching because it _callbacks.getSiteMap fails with older versions of Burp if you don't
+                    target = re.sub(r":[0-9]+", "", http_message.getUrl().toString())
+                    self.roots.add(target)
                 self.checkIfCancel()
 
             # Get all sitemap entries associated with the selected messages and scrape them for parameters, links and words
@@ -2791,6 +2792,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 if self.outLinkList.text == "":
                     self.outLinkList.text = "NO LINKS FOUND"
                 if self.countLinkUnique > 0:
+                    self.cbShowLinkOrigin.setEnabled(True)
+                    self.cbInScopeOnly.setEnabled(True)
                     self.inLinkFilter.setEnabled(True)
                     self.cbLinkCaseSens.setEnabled(True)
                     self.btnFilter.setEnabled(True)
@@ -2901,15 +2904,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if self.cbParamsEnabled.isSelected():
                 if self.outParamList.text != "NO PARAMETERS FOUND":
                     
+                    showParamOrigin = self.cbShowParamOrigin.isSelected()
+                    
                     # Write all parameters as one file to the root directory, with the project name, unless there is only one root selected
                     if len(self.roots) > 1:
                         with open(os.path.expanduser(self.getMainFilePath() + "_params.txt"), "w") as f:
                             self.checkIfCancel()
                             try:
-                                if self.cbShowParamOrigin.isSelected():
+                                if showParamOrigin:
                                     f.write(self.txtParamsWithURL.encode("UTF-8").replace("  "," "))
                                 else:
                                     f.write(self.txtParamsOnly.encode("UTF-8"))
+                                f.close()
                             except Exception as e:
                                 self._stderr.println("fileWriteParams 2")
                                 self._stderr.println(e)
@@ -2920,10 +2926,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             with open(os.path.expanduser(self.getFilePath(root) + "_params.txt"), "w") as f:
                                 self.checkIfCancel()
                                 try:
-                                    if self.cbShowParamOrigin.isSelected():
+                                    if showParamOrigin:
                                         f.write(self.txtParamsWithURL.encode("UTF-8").replace("  "," "))
                                     else:
                                        f.write(self.txtParamsOnly.encode("UTF-8"))
+                                    f.close()
                                 except Exception as e:
                                     self._stderr.println("fileWriteParams 3")
                                     self._stderr.println(e)
@@ -2934,8 +2941,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             self.checkIfCancel()
                             try:
                                 for param in self.txtParamsWithURL.encode("UTF-8").splitlines():
+                                    self.checkIfCancel()
                                     if "["+root in param or "[GAP]" in param:
-                                        if self.cbShowLinkOrigin.isSelected():
+                                        if showParamOrigin:
                                             fileText = fileText + param.replace("  "," ")+"\n"
                                         else:
                                             fileText = fileText + param.split("  [")[0]+"\n"
@@ -2973,21 +2981,25 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if self.cbLinksEnabled.isSelected():
                 if self.outLinkList.text != "NO LINKS FOUND":
 
+                    showLinkOrigin = self.cbShowLinkOrigin.isSelected()
+                    inScopeOnly = self.cbInScopeOnly.isSelected()
+                    
                     # Write all links as one file to the root directory, with the project name, unless there is only one root selected
                     if len(self.roots) > 1:
                         with open(os.path.expanduser(self.getMainFilePath() + "_links.txt"), "w") as f:
                             self.checkIfCancel()
                             try:
-                                if self.cbShowLinkOrigin.isSelected():
-                                    if self.cbInScopeOnly.isSelected():
+                                if showLinkOrigin:
+                                    if inScopeOnly:
                                         f.write(self.txtLinksWithURLInScopeOnly.encode("UTF-8").replace("  "," "))
                                     else:
                                         f.write(self.txtLinksWithURL.encode("UTF-8").replace("  "," "))
                                 else:
-                                    if self.cbInScopeOnly.isSelected():
+                                    if inScopeOnly:
                                         f.write(self.txtLinksOnlyInScopeOnly.encode("UTF-8"))
                                     else:
                                         f.write(self.txtLinksOnly.encode("UTF-8"))
+                                f.close()
                             except Exception as e:
                                 self._stderr.println("fileWriteLinks 2")
                                 self._stderr.println(e)
@@ -2998,16 +3010,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             with open(os.path.expanduser(self.getFilePath(root) + "_links.txt"), "w") as f:
                                 self.checkIfCancel()
                                 try:
-                                    if self.cbShowLinkOrigin.isSelected():
-                                        if self.cbInScopeOnly.isSelected():
+                                    if showLinkOrigin:
+                                        if inScopeOnly:
                                             f.write(self.txtLinksWithURLInScopeOnly.encode("UTF-8").replace("  "," "))
                                         else:
                                             f.write(self.txtLinksWithURL.encode("UTF-8").replace("  "," "))
                                     else:
-                                        if self.cbInScopeOnly.isSelected():
+                                        if inScopeOnly:
                                             f.write(self.txtLinksOnlyInScopeOnly.encode("UTF-8"))
                                         else:
                                             f.write(self.txtLinksOnly.encode("UTF-8"))
+                                    f.close()
                                 except Exception as e:
                                     self._stderr.println("fileWriteLinks 3")
                                     self._stderr.println(e)
@@ -3017,8 +3030,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             # Just get list of links for the root
                             self.checkIfCancel()
                             try:
-                                if self.cbInScopeOnly.isSelected():
+                                if inScopeOnly:
                                     for line in self.txtLinksWithURLInScopeOnly.encode("UTF-8").splitlines():
+                                        self.checkIfCancel()
                                         if "["+root in line or "[GAP]" in line:
                                             if self.cbShowLinkOrigin.isSelected():
                                                 fileText = fileText + line.replace("  "," ")+"\n"
@@ -3026,8 +3040,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                                 fileText = fileText + line.split("  [")[0]+"\n"
                                 else:
                                     for line in self.txtLinksWithURL.encode("UTF-8").splitlines():
+                                        self.checkIfCancel()
                                         if "["+root in line or "[GAP]" in line:
-                                            if self.cbShowLinkOrigin.isSelected():
+                                            if showLinkOrigin:
                                                 fileText = fileText + line.replace("  "," ")+"\n"
                                             else:
                                                 fileText = fileText + line.split("  [")[0]+"\n"
@@ -3045,6 +3060,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     
         except IOError as e:
                 self._stderr.println("There is a problem with the Save directory " + self.inSaveDir.text + ". Check it and correct it.")
+                self._stderr.println(e)
         except CancelGAPRequested as e:
             if _debug:
                 print("fileWriteLinks CancelGAPRequested raised")
@@ -3069,15 +3085,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 if self.cbWordsEnabled.isSelected():
                     if self.outWordList.text != "NO WORDS FOUND":
 
+                        showWordOrigin = self.cbShowWordOrigin.isSelected()
+                        
                         # Write all words as one file to the root directory, with the project name, unless there is only one root selected
                         if len(self.roots) > 1:
                             with open(os.path.expanduser(self.getMainFilePath() + "_words.txt"), "w") as f:
                                 self.checkIfCancel()
                                 try:
-                                    if self.cbShowWordOrigin.isSelected():
+                                    if showWordOrigin:
                                         f.write(self.txtWordsWithURL.encode("UTF-8").replace("  "," "))
                                     else:
                                         f.write(self.txtWordsOnly.encode("UTF-8"))
+                                    f.close()
                                 except Exception as e:
                                     self._stderr.println("fileWriteWords 2")
                                     self._stderr.println(e)
@@ -3088,10 +3107,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 with open(os.path.expanduser(self.getFilePath(root) + "_words.txt"), "w") as f:
                                     self.checkIfCancel()
                                     try:
-                                        if self.cbShowWordOrigin.isSelected():
+                                        if showWordOrigin:
                                             f.write(self.txtWordsWithURL.encode("UTF-8").replace("  "," "))
                                         else:
                                             f.write(self.txtWordsOnly.encode("UTF-8"))
+                                        f.close()
                                     except Exception as e:
                                         self._stderr.println("fileWriteWords 3")
                                         self._stderr.println(e)
@@ -3102,8 +3122,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 self.checkIfCancel()
                                 try:
                                     for word in self.txtWordsWithURL.encode("UTF-8").splitlines():
+                                        self.checkIfCancel()
                                         if "["+root in word or "[GAP]" in word:
-                                            if self.cbShowLinkOrigin.isSelected():
+                                            if showWordOrigin:
                                                 fileText = fileText + word.replace("  "," ")+"\n"
                                             else:
                                                 fileText = fileText + word.split("  [")[0]+"\n"
