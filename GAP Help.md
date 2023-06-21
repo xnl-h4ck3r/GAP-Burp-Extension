@@ -73,7 +73,7 @@ When the GAP Mode of Links is selected then GAP will try to find possible links 
 <li><b>Prefix with link(s)</b> - If checked, the value(s) in the text field will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code>. Multiple domains can be provided, separated by a semicolon, e.g. <code>http://example.com;https://sub.example.com</code></li>
 <li><b>Also include un-prefixed links</b> - If the <b>Prefix with selected target(s)</b> or <b>Prefix with link(s)</b >option is checked then this option can be checked to include the original un-prefixed link in addition to the prefixed link.</li>
 <li><b>Include site map endpoints in link list?</b> - This will include endpoints from the Burp Site map (what was selected) in the potential Link list, if they are in scope.</li>
-<li><b>Link exclusions</b> - The field contains a comma separated list of values. If any of these values exists in a potential link found, then it will be excluded from the final list. There is a initial default list determined by the <code>DEFAULT_EXCLUSIONS</code> constant, but you can change this and save your settings.</li>
+<li><b>Link exclusions</b> - If the option is selected it will be applied when run. The text field contains a comma separated list of values. If any of these values exists in a potential link found, then it will be excluded from the final list. There is a initial default list determined by the <code>DEFAULT_EXCLUSIONS</code> constant, but you can change this and save your settings. If the option is not selected, all links will be returned.</li>
 </ul>
 
 <h1>Words Mode</h1>
