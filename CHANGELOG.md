@@ -1,5 +1,20 @@
 ## Changelog
 
+- v3.3
+
+  - New
+
+    - Allow GAP to be called from any context, not just the site map.
+    - Add a `Link exclusion` check box. If this is unselected then ALL links wil be returned without checking the exclusion list.
+
+  - Changed
+
+    - Fix a bug where links that are out of scope are still shown when the `In scope only` option is selected.
+    - Fix a bug where unicode characters weren't always being converted correctly so some links may not have been successfully extracted.
+    - Fix a bug where if a link of `*.example.com` was found then it would be reported as `http://.example.com`
+    - Fix a bug where links with something between parenthesis or curly brackets in part of the subdomain stops the link being identified as being in or out of scope.
+    - FIx a bug where if a field isn't in the saved config, and exception occurs that prevents the remaining fields being set. Now if an error occurs getting any field from the saved config, it will set a default and continue.
+
 - v3.2
 
   - Changed

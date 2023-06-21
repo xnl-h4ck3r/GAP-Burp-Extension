@@ -1,6 +1,6 @@
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/title.png"></center>
 
-## About - v3.2
+## About - v3.3
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on, and produces a target specific wordlist to use for fuzzing.
 The full Help documentation can be found [here] (https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
@@ -22,6 +22,8 @@ The full Help documentation can be found [here] (https://github.com/xnl-h4ck3r/b
 1. Just select a target in your Burp scope (or multiple targets), or even just one subfolder or endpoint, and choose extension **GAP**:
 
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/run.png"></center>
+
+Or you can right click a request or response in any other context and select **GAP** from the **Extensions** menu.
 
 2. Then go to the **GAP** tab to see the results:
 

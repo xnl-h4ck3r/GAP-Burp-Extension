@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="3.2"
+VERSION="3.3"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -669,7 +669,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         layout.setAutoCreateContainerGaps(True)
 
         # Set up a field for comma separated exclusion strings
-        self.lblExclusions = JLabel(" Link exclusions:")
+        #self.lblExclusions = JLabel(" Link exclusions:")
+        self.cbExclusions = self.defineCheckBox("Link exclusions:", True)
+        self.cbExclusions.setFont(FONT_OPTIONS)
+        self.cbExclusions.setVisible(True)
+        self.cbExclusions.setEnabled(False)
+        self.cbExclusions.addItemListener(self.changeLinkExclusions)
         self.inExclusions = JTextField(300)
 
         # Restore saved config settings
@@ -842,7 +847,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     )
                     .addGroup(
                         layout.createSequentialGroup()
-                        .addComponent(self.lblExclusions)
+                        .addComponent(self.cbExclusions)
                         .addComponent(
                             self.inExclusions,
                             GroupLayout.DEFAULT_SIZE,
@@ -1046,7 +1051,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     )
                     .addGroup(
                         layout.createParallelGroup()
-                        .addComponent(self.lblExclusions)
+                        .addComponent(self.cbExclusions)
                         .addComponent(
                             self.inExclusions,
                             GroupLayout.PREFERRED_SIZE,
@@ -1123,7 +1128,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbShowLinkOrigin.visible = True
             self.scroll_outLinkList.visible = True
             self.grpLinkFilter.visible = True
-            self.lblExclusions.visible = True
+            self.cbExclusions.visible = True
             self.inExclusions.visible = True
         else:
             self.setEnabledLinkOptions(False)
@@ -1132,7 +1137,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbShowLinkOrigin.visible = False
             self.scroll_outLinkList.visible = False
             self.grpLinkFilter.visible = False
-            self.lblExclusions.visible = False
+            self.cbExclusions.visible = False
             self.inExclusions.visible = False
             # If no other mode is selected, reselect Params
             if not self.cbParamsEnabled.isSelected() and not self.cbWordsEnabled.isSelected():
@@ -1249,6 +1254,20 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self._stderr.println("changeParamDisplay 1")
             self._stderr.println(e)
   
+    def changeLinkExclusions(self, e=None):
+        """
+        The event called when the "Link exclusions" checkbox is changed
+        """
+        try:
+            if self.cbExclusions.isSelected():
+                self.inExclusions.setEnabled(True)
+            else:
+                self.inExclusions.setEnabled(False)
+                
+        except Exception as e:
+            self._stderr.println("changeLinkExclusions 1")
+            self._stderr.println(e)    
+        
     def changeWordDisplay(self, e=None):
         """
         The Word event called when the "Show origin" checkbox is changed
@@ -1483,7 +1502,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.cbUnPrefixed.setEnabled(True)
             else:
                  self.cbUnPrefixed.setEnabled(False)
-            self.lblExclusions.setEnabled(enabled)
+            self.cbExclusions.setEnabled(enabled)
             self.inExclusions.setEnabled(enabled)
             if self.cbParamsEnabled.isSelected():
                 self.cbParamFromLinks.setEnabled(enabled)
@@ -1799,6 +1818,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 "paramMetaName": self.cbParamMetaName.isSelected(),
                 "saveDir": self.inSaveDir.text,
                 "paramFromLinks": self.cbParamFromLinks.isSelected(),
+                "exclusionsEnabled": self.cbExclusions.isSelected(),
                 "linkExclusions": self.inExclusions.text,
                 "showParamOrigin": self.cbShowParamOrigin.isSelected(),
                 "showLinkOrigin": self.cbShowLinkOrigin.isSelected(),
@@ -1835,55 +1855,164 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if storedConfig != None:
             try:
                 config = pickle.loads(storedConfig)
-                self.cbSaveFile.setSelected(config["saveFile"])
-                self.cbParamUrl.setSelected(config["paramUrl"])
-                self.cbParamBody.setSelected(config["paramBody"])
-                self.cbParamMultiPart.setSelected(config["paramMultiPart"])
-                self.cbParamJson.setSelected(config["paramJson"])
-                self.cbParamCookie.setSelected(config["paramCookie"])
-                self.cbParamXml.setSelected(config["paramXml"])
-                self.cbParamXmlAttr.setSelected(config["paramXmlAttr"])
+                try:
+                    self.cbSaveFile.setSelected(config["saveFile"])
+                except:
+                    self.cbSaveFile.setSelected(True)
+                try:
+                    self.cbParamUrl.setSelected(config["paramUrl"])
+                except:
+                    self.cbParamUrl.setSelected(False)
+                try:
+                    self.cbParamBody.setSelected(config["paramBody"])
+                except:
+                    self.cbParamBody.setSelected(False)
+                try:
+                    self.cbParamMultiPart.setSelected(config["paramMultiPart"])
+                except:
+                    self.cbParamMultiPart.setSelected(True)
+                try:
+                    self.cbParamJson.setSelected(config["paramJson"])
+                except:
+                    self.cbParamJson.setSelected(False)
+                try:
+                    self.cbParamCookie.setSelected(config["paramCookie"])
+                except:
+                    self.cbParamCookie.setSelected(False)
+                try:
+                    self.cbParamXml.setSelected(config["paramXml"])
+                except:
+                    self.cbParamXml.setSelected(False)
+                try:
+                    self.cbParamXmlAttr.setSelected(config["paramXmlAttr"])
+                except:
+                    self.cbParamXmlAttr.setSelected(False)
                 try:
                     self.inQueryStringVal.text = config["queryStringVal"]
                 except:
                     self.inQueryStringVal.text = DEFAULT_QSV
-                self.cbIncludeCommonParams.setSelected(config["includeCommonParams"])
-                self.cbIncludePathWords.setSelected(config["includePathWords"])
-                self.cbParamJSONResponse.setSelected(config["paramJsonResponse"])
-                self.cbParamXMLResponse.setSelected(config["paramXmlResponse"])
-                self.cbParamInputField.setSelected(config["paramInputField"])
-                self.cbParamJSVars.setSelected(config["paramJSVars"])
-                self.cbParamMetaName.setSelected(config["paramMetaName"])
+                try:
+                    self.cbIncludeCommonParams.setSelected(config["includeCommonParams"])
+                except:
+                    self.cbIncludeCommonParams.setSelected(True)
+                try:
+                    self.cbIncludePathWords.setSelected(config["includePathWords"])
+                except:
+                    self.cbIncludePathWords.setSelected(False)
+                try:
+                    self.cbParamJSONResponse.setSelected(config["paramJsonResponse"])
+                except:
+                    self.cbParamJSONResponse.setSelected(False)
+                try:
+                    self.cbParamXMLResponse.setSelected(config["paramXmlResponse"])
+                except:
+                    self.cbParamXMLResponse.setSelected(False)
+                try:
+                    self.cbParamInputField.setSelected(config["paramInputField"])
+                except:
+                    self.cbParamInputField.setSelected(False)
+                try:
+                    self.cbParamJSVars.setSelected(config["paramJSVars"])
+                except:
+                    self.cbParamJSVars.setSelected(False)
+                try:
+                    self.cbParamMetaName.setSelected(config["paramMetaName"])
+                except:
+                    self.cbParamMetaName.setSelected(False)
                 try:
                     self.inSaveDir.text = config["saveDir"]
                     # Check the directory is valid, otherwise an error will be raised and it will be reset to default
                     listOfFile = os.listdir(self.inSaveDir.text)
                 except:
                     self.inSaveDir.text = self.getDefaultSaveDirectory()
-                self.cbParamFromLinks.setSelected(config["paramFromLinks"])
-                self.inExclusions.text = config["linkExclusions"]
-                self.cbShowParamOrigin.setSelected(config["showParamOrigin"])
-                self.cbShowLinkOrigin.setSelected(config["showLinkOrigin"])
-                self.cbShowWordOrigin.setSelected(config["showWordOrigin"])
-                self.cbInScopeOnly.setSelected(config["inScopeOnly"])
-                self.cbSiteMapEndpoints.setSelected(config["sitemapEndpoints"])
-                self.cbParamsEnabled.setSelected(config["paramsEnabled"])
-                self.cbLinksEnabled.setSelected(config["linksEnabled"])
-                self.cbLinkPrefix.setSelected(config["linkPrefixChecked"])
+                try:
+                    self.cbParamFromLinks.setSelected(config["paramFromLinks"])
+                except:
+                    self.cbParamFromLinks.setSelected(False)
+                try:
+                    self.cbExclusions.setSelected(config["exclusionsEnabled"])
+                except:
+                    self.cbExclusions.setSelected(True)
+                try:
+                    self.inExclusions.text = config["linkExclusions"]
+                except:
+                    self.inExclusions.text = DEFAULT_EXCLUSIONS
+                try:
+                    self.cbShowParamOrigin.setSelected(config["showParamOrigin"])
+                except:
+                    self.cbShowParamOrigin.setSelected(False)
+                try:
+                    self.cbShowLinkOrigin.setSelected(config["showLinkOrigin"])
+                except:
+                    self.cbShowLinkOrigin.setSelected(False)
+                try:
+                    self.cbShowWordOrigin.setSelected(config["showWordOrigin"])
+                except:
+                    self.cbShowWordOrigin.setSelected(False)
+                try:
+                    self.cbInScopeOnly.setSelected(config["inScopeOnly"])
+                except:
+                    self.cbInScopeOnly.setSelected(True)
+                try:
+                    self.cbSiteMapEndpoints.setSelected(config["sitemapEndpoints"])
+                except:
+                    self.cbSiteMapEndpoints.setSelected(False)
+                try:
+                    self.cbParamsEnabled.setSelected(config["paramsEnabled"])
+                except:
+                    self.cbParamsEnabled.setSelected(True)
+                try:
+                    self.cbLinksEnabled.setSelected(config["linksEnabled"])
+                except:
+                    self.cbLinksEnabled.setSelected(True)
+                try:
+                    self.cbLinkPrefix.setSelected(config["linkPrefixChecked"])
+                except:
+                    self.cbLinkPrefix.setSelected(False)
                 try:
                     self.inLinkPrefix.text = config["linkPrefix"]
                 except:
                     self.inLinkPrefix.text = DEFAULT_LINK_PREFIX
-                self.cbLinkPrefixScope.setSelected(config["linkPrefixScopeChecked"])
-                self.cbUnPrefixed.setSelected(config["unprefixed"])
-                self.cbWordsEnabled.setSelected(config["wordsEnabled"])
-                self.cbWordPlurals.setSelected(config["wordPlurals"])
-                self.cbWordPaths.setSelected(config["wordPaths"])
-                self.cbWordDigits.setSelected(config["wordDigits"])
-                self.cbWordParams.setSelected(config["wordParams"])
-                self.cbWordComments.setSelected(config["wordComments"])
-                self.cbWordImgAlt.setSelected(config["wordImgAlt"])
-                self.inWordsMaxlen.text = (config["wordMaxLen"])
+                try:
+                    self.cbLinkPrefixScope.setSelected(config["linkPrefixScopeChecked"])
+                except:
+                    self.cbLinkPrefixScope.setSelected(False)
+                try:
+                    self.cbUnPrefixed.setSelected(config["unprefixed"])
+                except:
+                    self.cbUnPrefixed.setSelected(False)
+                try:
+                    self.cbWordsEnabled.setSelected(config["wordsEnabled"])
+                except:
+                    self.cbWordsEnabled.setSelected(True)
+                try:
+                    self.cbWordPlurals.setSelected(config["wordPlurals"])
+                except:
+                    self.cbWordPlurals.setSelected(True)
+                try:
+                    self.cbWordPaths.setSelected(config["wordPaths"])
+                except:
+                    self.cbWordPaths.setSelected(False)
+                try:
+                    self.cbWordDigits.setSelected(config["wordDigits"])
+                except:
+                    self.cbWordDigits.setSelected(True)
+                try:
+                    self.cbWordParams.setSelected(config["wordParams"])
+                except:
+                    self.cbWordParams.setSelected(False)
+                try:
+                    self.cbWordComments.setSelected(config["wordComments"])
+                except:
+                    self.cbWordComments.setSelected(True)
+                try:
+                    self.cbWordImgAlt.setSelected(config["wordImgAlt"])
+                except:
+                    self.cbWordImgAlt.setSelected(True)
+                try:
+                    self.inWordsMaxlen.text = (config["wordMaxLen"])
+                except:
+                    self.inWordsMaxlen.text = DEFAULT_MAX_WORD_LEN
                 try:
                     self.inStopWords.text = (config["stopWords"])
                 except:
@@ -1978,11 +2107,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Invokes the Extensions "GAP" menu.
         """
         self.context = context
-        if context.getInvocationContext() == context.CONTEXT_TARGET_SITE_MAP_TREE:
-            menuList = ArrayList()
-            menuGAP = JMenuItem("GAP", actionPerformed=self.menuGAP_clicked)
-            menuList.add(menuGAP)
-            return menuList
+        menuList = ArrayList()
+        menuGAP = JMenuItem("GAP", actionPerformed=self.menuGAP_clicked)
+        menuList.add(menuGAP)
+        return menuList
 
     def menuGAP_clicked(self, e=None):
         """
@@ -2534,10 +2662,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # If the link contains the origin endpoint, then strip that
             if link.find("[") >= 0:
                 link = link[0 : link.find("[")]
-            # If the link contains anything in brackets, then strip that
+                
+            # If the link contains anything in brackets, then strip the brackets and there contents out of the URL
             if link.find("(") >= 0:
+                link = re.sub(r"\(.*\)", "", link)
                 link = link[0 : link.find("(")]
             if link.find("{") >= 0:
+                link = re.sub(r"\{.*\}", "", link)
                 link = link[0 : link.find("{")]
 
             # Get from the dictionary
@@ -2550,7 +2681,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # If the link contains :// then replace the schema with http because the getHost() method will return blank if it's a different scheme, so this is a workaround
                 if newLink.find("://") > 0:
                     newLink = "http://" + newLink.split("://")[1]
-                    
+                
+                # Remove wildcards from Host if they exists
+                newLink = newLink.replace("*.", "").replace(":*", "").replace("*", "")
+                
                 host = URL(newLink).getHost()
                 # If we could get a host, get that to the dictionary
                 inCheckedLinks = self.dictCheckedLinks.get(host)
@@ -2578,8 +2712,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 # From the extracted text, prepend http:// and then check if that is in scope
                 try:
-                    url = "http://" + host.replace("*.", "")
-                    url = "http://" + host.replace("*", "")
+                    url = "http://" + host
                     try:
                         # The Burp API needs a java.net.URL object to check if it is in scope
                         # Convert the URL. If it isn't a valid URL an exception is thrown so we can catch and not pass to Burp API
@@ -2797,7 +2930,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.inLinkFilter.setEnabled(True)
                     self.cbLinkCaseSens.setEnabled(True)
                     self.btnFilter.setEnabled(True)
-                    self.lblExclusions.setEnabled(True)
+                    self.cbExclusions.setEnabled(True)
                     self.inExclusions.setEnabled(True)
 
             # Write the links to a file if required
@@ -3314,7 +3447,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
     def includeLink(self, link):
         """
-        Determine if the passed Link should be excluded by checking the list of exclusions
+        Determine if the passed Link should be excluded by checking the list of exclusions (if selected)
         Returns whether the link should be included
         """
         include = True
@@ -3344,7 +3477,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self._stderr.println("includeLink 2")
             self._stderr.println(e)
 
-        if include:
+        # Only check the exclusion list the "Link exclusions" check box is selected
+        if include and self.cbExclusions.isSelected():
             # Get the exclusions
             try:
                 lstExclusions = self.inExclusions.text.split(",")
@@ -3439,8 +3573,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         header = response_string[:body_offset]
 
         # Some URLs may be displayed in the body within strings that have different encodings of / and : so replace these
-        body = re.sub("(&#x2f;|%2f|\\u002f|\\\/)", "/", body, flags=re.IGNORECASE)
-        body = re.sub("(&#x3a;|%3a|\\u003a|\\\/)", ":", body, flags=re.IGNORECASE)
+        body = re.sub(r"(&#x2f;|%2f|\u002f|\/)", "/", body, flags=re.IGNORECASE)
+        body = re.sub(r"(&#x3a;|%3a|\u003a)", ":", body, flags=re.IGNORECASE)
+        body = body.replace("\/","/")
         
         # Replace occurrences of HTML entity &quot; with an actual double quote
         body = body.replace('&quot;','"')
@@ -3570,10 +3705,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     link = link.replace("&amp;", "&")
                                     link = link.replace("\\x26", "&")
                                     link = link.replace("\\u0026", "&")
+                                    link = link.replace(r"\x26", "&")
+                                    link = link.replace(r"\u0026", "&")
                                     link = link.replace("&#38;","&")
                                     link = link.replace("&equals;", "=")
                                     link = link.replace("\\x3d", "=")
                                     link = link.replace("\\u003d", "=")
+                                    link = link.replace(r"\x3d", "=")
+                                    link = link.replace(r"\u003d", "=")
                                     link = link.replace("&#61;", "=")
                                     param_keys = re.finditer(
                                         r"(?<=\?|&)[^\=\&\n].*?(?=\=|&|\n)", link
