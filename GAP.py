@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="3.3"
+VERSION="3.4"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -1353,7 +1353,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Show the parameter list or query string depending on the option selected
         if self.cbShowQueryString.isSelected():
             # Set the values if not already set
-            if self.outParamQuery.text == "":
+            if self.outParamQuery.text == "" or self.outParamQuery.text == "NO PARAMETERS FOUND":
                 index = 0
                 paramQuery = ""
                 self.outParamQuery.text = "UPDATING..."
@@ -3048,6 +3048,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     f.write(self.txtParamsWithURL.encode("UTF-8").replace("  "," "))
                                 else:
                                     f.write(self.txtParamsOnly.encode("UTF-8"))
+                                f.write("\n".encode("UTF-8"))
                                 f.close()
                             except Exception as e:
                                 self._stderr.println("fileWriteParams 2")
@@ -3063,6 +3064,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                         f.write(self.txtParamsWithURL.encode("UTF-8").replace("  "," "))
                                     else:
                                        f.write(self.txtParamsOnly.encode("UTF-8"))
+                                    f.write("\n".encode("UTF-8"))
                                     f.close()
                                 except Exception as e:
                                     self._stderr.println("fileWriteParams 3")
@@ -3090,6 +3092,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 fileText = "\n".join(sorted(set(fileText.split())))
                                 with open(os.path.expanduser(self.getFilePath(root) + "_params.txt"), "w") as f:
                                     f.write(fileText)
+                                    f.write("\n".encode("UTF-8"))
                                     f.close
                                 
         except IOError as e:
@@ -3132,6 +3135,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                         f.write(self.txtLinksOnlyInScopeOnly.encode("UTF-8"))
                                     else:
                                         f.write(self.txtLinksOnly.encode("UTF-8"))
+                                f.write("\n".encode("UTF-8"))
                                 f.close()
                             except Exception as e:
                                 self._stderr.println("fileWriteLinks 2")
@@ -3153,6 +3157,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                             f.write(self.txtLinksOnlyInScopeOnly.encode("UTF-8"))
                                         else:
                                             f.write(self.txtLinksOnly.encode("UTF-8"))
+                                    f.write("\n".encode("UTF-8"))
                                     f.close()
                                 except Exception as e:
                                     self._stderr.println("fileWriteLinks 3")
@@ -3189,6 +3194,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 fileText = "\n".join(sorted(set(fileText.split())))
                                 with open(os.path.expanduser(self.getFilePath(root) + "_links.txt"), "w") as f:
                                     f.write(fileText)
+                                    f.write("\n".encode("UTF-8"))
                                     f.close
                                     
         except IOError as e:
@@ -3229,6 +3235,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                         f.write(self.txtWordsWithURL.encode("UTF-8").replace("  "," "))
                                     else:
                                         f.write(self.txtWordsOnly.encode("UTF-8"))
+                                    f.write("\n".encode("UTF-8"))
                                     f.close()
                                 except Exception as e:
                                     self._stderr.println("fileWriteWords 2")
@@ -3244,6 +3251,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                             f.write(self.txtWordsWithURL.encode("UTF-8").replace("  "," "))
                                         else:
                                             f.write(self.txtWordsOnly.encode("UTF-8"))
+                                        f.write("\n".encode("UTF-8"))
                                         f.close()
                                     except Exception as e:
                                         self._stderr.println("fileWriteWords 3")
@@ -3271,6 +3279,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     fileText = "\n".join(sorted(set(fileText.split())))
                                     with open(os.path.expanduser(self.getFilePath(root) + "_words.txt"), "w") as f:
                                         f.write(fileText)
+                                        f.write("\n".encode("UTF-8"))
                                         f.close
                                     
             except IOError as e:

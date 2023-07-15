@@ -1,5 +1,12 @@
 ## Changelog
 
+- v3.4
+
+  - Changed
+
+    - Fix a bug that was causing the `Show params as query string` option to not display anything if the `Include common parameters` option is not ticked.
+    - Ensure there is a newline character at the end of the final line on output files.
+
 - v3.3
 
   - New
