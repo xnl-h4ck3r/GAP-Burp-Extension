@@ -1,5 +1,11 @@
 ## Changelog
 
+- v3.5
+
+  - Changed
+
+    - Fix a bug that fails to process a root in the site map if it contains a port number.
+
 - v3.4
 
   - Changed

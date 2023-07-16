@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="3.4"
+VERSION="3.5"
 
 from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
 from javax.swing import (
@@ -2359,7 +2359,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             for http_message in http_messages:
                 if http_message.getUrl() is not None:
                     # Need to strip the port from the URL before searching because it _callbacks.getSiteMap fails with older versions of Burp if you don't
-                    target = re.sub(r":[0-9]+", "", http_message.getUrl().toString())
+                    target = re.sub(r":80[^0-9]|:443[^0-9]", "", http_message.getUrl().toString())
                     self.roots.add(target)
                 self.checkIfCancel()
 
