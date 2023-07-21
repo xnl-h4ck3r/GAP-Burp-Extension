@@ -34,6 +34,13 @@ Or you can right click a request or response in any other context and select **G
 If you don't need one of the modes, then un-check it as results will be quicker.
 The Words mode uses the `beautifulsoup4` library and this can be quite slow, so be patient!
 
+## In Depth Instructions
+
+Below is an in-depth look at the GAP Burp extension, from installing it successfully to explaining all of the features.
+<b>NOTE: This video is from 16th July 2023 and explores v3.X, so any features added after this may not be featured</b><br>
+
+<center><iframe width="560" height="315" src="https://www.youtube.com/embed/Os3bN0zUROA?si=KKr9YWFiA40YD1N_" title="GAP Burp Extension" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><center>
+
 ## TODO
 
 - Improve the performance of writing the output files. For some reason this can take a looooong time in some cases.
