@@ -3880,9 +3880,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             print("getPathWords started")
         try:
             # Split the URL on /
-            words = re.compile(r"[\:/?=\-&#]+", re.UNICODE).split(path) + path.split('/')
-            # Deduplicate the words list
-            words = list(set(words))
+            words = set(re.compile(r"[\:/?=\-&#]+", re.UNICODE).split(path) + path.split('/'))
+            temp = []
+            for x in words:
+                temp.extend(x.split(","))
+            words = set(temp)
             # Add the word to the parameter list, unless it has a . in it or is a number. or it is a single character that isn't a letter
             for word in words:
                 if (
