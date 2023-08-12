@@ -1,6 +1,6 @@
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/title.png"></center>
 
-## About - v3.5
+## About - v4.0
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on, and produces a target specific wordlist to use for fuzzing.
 The full Help documentation can be found [here](https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
@@ -29,9 +29,16 @@ Or you can right click a request or response in any other context and select **G
 
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/tab.png"></center>
 
-## Notes
+## IMPORTANT Notes
 
 If you don't need one of the modes, then un-check it as results will be quicker.
+
+If you run GAP for one or more targets from the Site Map view, don't have them expanded when you run GAP... unfortunately this can make it a lot slower. It will be more efficient if you run for one or two target in the Site Map view at a time, as huge projects can have consume a lot of resources.
+
+If you want to run GAP on one of more specific requests, do not select them from the Site Map tree view. It will be a lot quicker to run it from the Site Map Contents view if possible, or from proxy history.
+
+It is hard to design GAP to display all controls for all screen resolutions and font sizes. I have tried to deal with the most common setups, but if you find you cannot see all the controls, you can hold down the `Ctrl` button and click the GAP logo header image to remove it to make more space.
+
 The Words mode uses the `beautifulsoup4` library and this can be quite slow, so be patient!
 
 ## In Depth Instructions
@@ -44,7 +51,12 @@ Below is an in-depth look at the GAP Burp extension, from installing it successf
 
 ## TODO
 
-- Improve the performance of writing the output files. For some reason this can take a looooong time in some cases.
+- Get potential parameters from the Request that Burp doesn't identify itself, e.g. XML, graphql, etc.
+- Add an option to not add the `Tentaive` Issues, e.g. Parameters that were found in the Response (but not as query parameters in links found).
+- Improve performance of the link finding regular expressions.
+- Include the Request/Response markers in the raised Sus parameter Issues if I can find a way to not make performance really bad!
+- Deal with other size displays and font sizes better to make sure all controls are viewable.
+- If multiple Site Map tree targets are selected, write the files more efficiently. This can take forever in some cases.
 - Use an alternative to `beautifulsoup4` that is faster to parse responses for Words.
 
 Good luck and good hunting!

@@ -1,5 +1,59 @@
 ## Changelog
 
+- v4.0
+
+  - New
+
+    - Added `Report "Sus" parameters?` option for Parameters mode.
+    - Added `Show "sus"` option for Parameters mode.
+    - Raise a Burp custom Issue (not available in Community Edition) if a "Sus" parameter is identified.
+    - For Community Edition, write details of "Sus" parameters found to the extension output.
+    - Added `Create lowercase words?` Word option to determine whether to add a lowercase version of a word if it contains any uppercase letters. In previous versions this was done by default.
+    - Added context help in the form of tool tips on most features and controls of GAP.
+    - Added `Show context help` option to turn off tool tips the next time GAP is loaded.
+    - Added `Include relative links?` Parameter option to determine whether to include links in the results if they start with `/./` or `/../`
+    - Added functionality to get Parameters from the Request that Burp doesn't successfully detect. Initially this will just get parameters within JSON strings.
+    - Do not get words from a `*.js.map` file. Sometimes these are JSON rather than javascript and end up adding a lot of pointless words like mapping names.
+    - Ignore certain words if found in `robots.txt`
+    - Do not include words that are in paths. A lot of these were previously being included even if the `Include URL path words?` option wasn't selected because of the regex to get words was not good enough.
+    - If you hold down the Ctrl key when clicking the GAP logo header image, it will be removed. This can be used in cases where some controls are not visible on the screen.
+    - Added the regex part `(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')` to the main Link finder regex to get more potential links. Also, ignore any links that then start with `application/`, `image/`, `model/`, `video/`, `audio/` or `text/` because these are content-types that can be confused with links.
+    - Add `wasnt` to Stop Words list.
+    - Add `.pdf` to `FILEEXT_EXCLUSIONS` constant.
+    - Ignore links if they start with `/=` (some false positives).
+    - When running GAP from the Site Map tree context, the progress bar will say `Getting reqs...` when it is getting the number of requests for the current target.
+    - When encoding links to display, set `:` and `/` as `safe`. Also replace the value `%C3%83%C2%82%C3%82%C2%A0` which can sometimes occur when the character `Â` occurs instead of `&nbsp;`.
+
+  - Changed
+
+    - Rewrote the `doeverything` function to deal with the Site Map tree context differently to the other contexts, to improve performance.
+    - If you start GAP from the Site Map tree, only in scope requests will be checked.
+    - Removed the `Include common parameters?` check box. This functionality has been removed, partially because of it's limited use, and also to allow for space to add sus parameter options.
+    - Remove the trailing `&` off the end of the parameter query string.
+    - If the `Include site map endpoints?` option is selected, then also include URLs of requests in the site map that haven't been requested yet (i.e. found by Burp in crawling), if they are in scope.
+    - Fix a bug that was including a potential link that had no scheme (e.g. a file name) with AND without a prefixed `/`
+    - Suppress errors in `addLink` when doing `urlparse`. If an error occurs then the URL will be ignored.
+    - Only display parameters that contain at least one letter, number or \_
+    - Improve regex to get more parameters from the response that could be parameters in encoded links
+    - Display the progress bar as soon as GAP is started so it is clearer it is running if it takes time to get all roots and messages
+    - Improve the regex for finding links in the responses
+    - Don't display potential links if they contain any unprintable ASCII characters (0-31)
+    - Remove the check for `X-SourceMap` because it is already covered by the existing regex
+    - Improve performance initially when getting the number of messages selected to display in the progress bar
+    - Improve `sanitizeWord` function to use regex and also remove spaces and %20. Also correct error not replacing %29
+    - If the Parameter or Word mode `Include URL path words?` option is selected, only get if there is a response. This is because Burp will put links in the sitemap that haven't been requested, but can incorrectly get links with wrong paths that then end up with words that make no sense.
+    - Get potential words from more `meta` tags, and also get from some relevant `link`-`rel` tags.
+    - Remove the `Name attribute of meta tags` Parameter option because this has little to no value at all.
+    - Show relative links without being prefixed with `/`
+    - Pull request from [bebiksior](https://github.com/bebiksior) to improve word list by splitting words with dash, and also by comma.
+    - Replace regex `findall`and `search` with pre-compiled statements for better performance.
+    - Fix logic in `includeContentType` where unnecessary calls were being made. Also just call `includeContentType` once at the start and use the result later instead of calling 3 times.
+    - Remove `robots.txt` in `DEFAULT_EXCLUSIONS` (not sure why I put it in there in the first place!)
+    - Change `polyfill.io` to `polyfill` in `DEFAULT_EXCLUSIONS`
+    - Resolve an issue that can cause CPU to max out if the `Prefix with selected Target(s)` option is selected, and there are a lot of targets selected with many links.
+    - Remove the test `(?<=\=)\s*\/[0-9a-zA-Z]+[^>\n]*` from the response link Regex because it gives too many false positives and can also end up selected a huge part of JS files and cause performance issues.
+    - Make a change to the Link regex to make sure that potential links that start with `//` are not followed by any spaces.
+
 - v3.5
 
   - Changed

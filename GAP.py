@@ -8,9 +8,11 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="3.5"
+VERSION="4.0"
 
-from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab
+_debug = False
+
+from burp import IBurpExtender, IContextMenuFactory, IScopeChangeListener, ITab, IScanIssue
 from javax.swing import (
     JFrame,
     JMenuItem,
@@ -39,13 +41,18 @@ from java.lang import System
 from javax.imageio import ImageIO
 
 import os
-import platform
 import re
 import pickle
 import threading
 import time
 import urllib
 from datetime import datetime
+from array import array
+try:
+    import profile
+    import pstats
+except:
+    pass
 
 WORDLIST_IMPORT_ERROR = ""
 try:
@@ -62,116 +69,28 @@ try:
     import html5lib
 except Exception as e:
     html5libInstalled = False
-    
-_debug = False
 
-# Common parameter names often used across targets, mainly for redirects. These can be included in the collected parameter list by checking the "Include the list of common params in list" option
-# NOTE: Some are the same, but different case in places as these can be treated differently
-COMMON_PARAMS = [
-    "page",
-    "callback",
-    "next",
-    "prev",
-    "previous",
-    "ref",
-    "go",
-    "return",
-    "goto",
-    "r_url",
-    "returnurl",
-    "returnuri",
-    "location",
-    "locationurl",
-    "return_url",
-    "goTo",
-    "r_Url",
-    "r_URL",
-    "returnUrl",
-    "returnURL",
-    "returnUri",
-    "retunrURI",
-    "locationUrl",
-    "locationURL",
-    "return_Url",
-    "return_URL",
-    "site",
-    "debug",
-    "active",
-    "admin",
-    "id",
-    "cancelUrl",
-    "cancelURL",
-    "cancel_url",
-    "forward",
-    "rurl",
-    "r_url",
-    "out",
-    "redirect",
-    "view",
-    "to",
-    "url",
-    "uri",
-    "target",
-    "dest",
-    "destination",
-    "redir",
-    "redirecturl",
-    "redirect_url",
-    "redirecturi",
-    "redirect_uri",
-    "relaystate",
-    "RelayState",
-    "u",
-    "n",
-    "forward",
-    "forwardurl",
-    "forward_url",
-    "src",
-    "endpoint",
-    "srcURL",
-    "q",
-    "link",
-    "import_url",
-    "images",
-    "image",
-    "id",
-    "html",
-    "ewsUrl",
-    "downloadpath",
-    "destination",
-    "consumerUri",
-    "add_imageurl"
-    "s", 
-    "search", 
-    "lang", 
-    "keyword", 
-    "query", 
-    "keywords", 
-    "year", 
-    "email", 
-    "type", 
-    "name", 
-    "p", 
-    "month", 
-    "list_type",  
-    "terms", 
-    "categoryid", 
-    "key", 
-    "l", 
-    "begindate",
-    "enddate"
-]
-
+# Sus Parameters from @jhaddix and @G0LDEN_infosec
+SUS_CMDI = ['execute','dir','daemon','cli','log','cmd','download','ip','upload']
+SUS_DEBUG = ['test','reset','config','shell','admin','exec','load','cfg','dbg','edit','root','create','access','disable','alter','make','grant','adm','toggle','execute','clone','delete','enable','rename','debug','modify']
+SUS_FILEINC =  ['root','directory','path','style','folder','default-language','url','platform','textdomain','document','template','pg','php_path','doc','type','lang','token','name','pdf','file','etc','api','app','resource-type']
+SUS_IDOR = ['count','key','user','id','extended_data','uid2','group','team_id','data-id','no','username','email','account','doc','uuid','profile','number','user_id','edit','report','order']
+SUS_OPENREDIRECT = ['u','redirect_uri','failed','r','referer','return_url','redirect_url','prejoin_data','continue','redir','return_to','origin','redirect_to','next']
+SUS_SQLI = ['process','string','id','referer','password','pwd','field','view','sleep','column','log','token','sel','select','sort','from','search','update','pub_group_id','row','results','role','table','multi_layer_map_list','order','filter','params','user','fetch','limit','keyword','email','query','c','name','where','number','phone_number','delete','report']
+SUS_SSRF = ['start','path','domain','source','url','site','view','template','page','show','val','dest','metadata','out','feed','navigation','image_host','uri','next','continue','host','window','dir','reference','filename','html','to','return','open','port','stop','validate','resturl','callback','name','data','ip','redirect']
+SUS_SSTI = ['preview','activity','id','name','content','view','template','redirect']
+SUS_XSS = ['path','admin','class','atb','redirect_uri','other','utm_source','currency','dir','title','endpoint','return_url','users','cookie','state','callback','militarybranch','e','referer','password','author','body','status','utm_campaign','value','text','search','flaw','vote','pathname','params','user','t','utm_medium','q','email','what','file','data-original','description','subject','action','u','nickname','color','language_id','auth','samlresponse','return','readyfunction','where','tags','cvo_sid1','target','format','back','term','r','id','url','view','username','sequel','type','city','src','p','label','ctx','style','html','ad_type','s','issues','query','c','shop','redirect']
+             
 # A comma separated list of Link exclusions used when no options have been saved, or when the "Restore defaults" button is pressed
 # Links are NOT displayed if they contain these strings. This just applies to the links found in endpoints, not the origin link in which it was found
-DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,w3.org,doubleclick.net,youtube.com,.vue,jquery,bootstrap,font,jsdelivr.net,vimeo.com,pinterest.com,facebook,linkedin,twitter,instagram,google,mozilla.org,jibe.com,schema.org,schemas.microsoft.com,wordpress.org,w.org,wix.com,parastorage.com,whatwg.org,polyfill.io,typekit.net,schemas.openxmlformats.org,openweathermap.org,openoffice.org,reactjs.org,angularjs.org,java.com,purl.org,/image,/img,/css,/wp-json,/wp-content,/wp-includes,/theme,/audio,/captcha,/font,robots.txt,node_modules,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.avif"
+DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,w3.org,doubleclick.net,youtube.com,.vue,jquery,bootstrap,font,jsdelivr.net,vimeo.com,pinterest.com,facebook,linkedin,twitter,instagram,google,mozilla.org,jibe.com,schema.org,schemas.microsoft.com,wordpress.org,w.org,wix.com,parastorage.com,whatwg.org,polyfill,typekit.net,schemas.openxmlformats.org,openweathermap.org,openoffice.org,reactjs.org,angularjs.org,java.com,purl.org,/image,/img,/css,/wp-json,/wp-content,/wp-includes,/theme,/audio,/captcha,/font,node_modules,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.avif"
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
 CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package"
 
 # A comma separated list of file extension exclusions used when the content-type isn't available. Files with these extensions will NOT be checked
-FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid"
+FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.pdf"
 
 # The default value (used until options are saved, or when the "Restore defaults" button is pressed) for the generated query string of all parameters.
 DEFAULT_QSV = "XNLV"
@@ -183,7 +102,7 @@ LINK_REGEX_FILES = "php|php3|php5|asp|aspx|ashx|cfm|cgi|pl|jsp|jspx|json|js|acti
 DEFAULT_WORDS_CONTENT_TYPES = "text/html,application/xml,application/json,text/plain,application/xhtml+xml,application/ld+json,text/xml"
 
 # Default english "stop word" list
-DEFAULT_STOP_WORDS = "a,aboard,about,above,across,after,afterwards,again,against,all,almost,alone,along,already,also,although,always,am,amid,among,amongst,an,and,another,any,anyhow,anyone,anything,anyway,anywhere,are,around,as,at,back,be,became,because,become,becomes,becoming,been,before,beforehand,behind,being,below,beneath,beside,besides,between,beyond,both,bottom,but,by,can,cannot,cant,con,concerning,considering,could,couldnt,cry,de,describe,despite,do,done,down,due,during,each,eg,eight,either,eleven,else,elsewhere,empty,enough,etc,even,ever,every,everyone,everything,everywhere,except,few,fifteen,fifty,fill,find,fire,first,five,for,former,formerly,forty,found,four,from,full,further,get,give,go,had,has,hasnt,have,he,hence,her,here,hereafter,hereby,herein,hereupon,hers,herself,him,himself,his,how,however,hundred,i,ie,if,in,inc,indeed,inside,interest,into,is,it,its,itself,keep,last,latter,latterly,least,less,like,ltd,made,many,may,me,meanwhile,might,mill,mine,more,moreover,most,mostly,move,much,must,my,myself,name,namely,near,neither,never,nevertheless,next,nine,no,nobody,none,noone,nor,not,nothing,now,nowhere,of,off,often,on,once,one,only,onto,or,other,others,otherwise,our,ours,ourselves,out,outside,over,own,part,past,per,perhaps,please,put,rather,re,regarding,round,same,see,seem,seemed,seeming,seems,serious,several,she,should,show,side,since,sincere,six,sixty,so,some,somehow,someone,something,sometime,sometimes,somewhere,still,such,take,ten,than,that,the,their,them,themselves,then,thence,there,thereafter,thereby,therefore,therein,thereupon,these,they,thick,thin,third,this,those,though,three,through,throughout,thru,thus,to,together,too,top,toward,towards,twelve,twenty,two,un,under,underneath,until,unto,up,upon,us,very,via,want,was,we,well,went,were,weve,what,whatever,when,whence,whenever,where,whereafter,whereas,whereby,wherein,whereupon,wherever,whether,which,while,whilst,whither,whoever,whole,whom,whose,why,will,with,within,without,would,yet,you,youll,your,youre,yours,yourself,yourselves,youve"
+DEFAULT_STOP_WORDS = "a,aboard,about,above,across,after,afterwards,again,against,all,almost,alone,along,already,also,although,always,am,amid,among,amongst,an,and,another,any,anyhow,anyone,anything,anyway,anywhere,are,around,as,at,back,be,became,because,become,becomes,becoming,been,before,beforehand,behind,being,below,beneath,beside,besides,between,beyond,both,bottom,but,by,can,cannot,cant,con,concerning,considering,could,couldnt,cry,de,describe,despite,do,done,down,due,during,each,eg,eight,either,eleven,else,elsewhere,empty,enough,etc,even,ever,every,everyone,everything,everywhere,except,few,fifteen,fifty,fill,find,fire,first,five,for,former,formerly,forty,found,four,from,full,further,get,give,go,had,has,hasnt,have,he,hence,her,here,hereafter,hereby,herein,hereupon,hers,herself,him,himself,his,how,however,hundred,i,ie,if,in,inc,indeed,inside,interest,into,is,it,its,itself,keep,last,latter,latterly,least,less,like,ltd,made,many,may,me,meanwhile,might,mill,mine,more,moreover,most,mostly,move,much,must,my,myself,name,namely,near,neither,never,nevertheless,next,nine,no,nobody,none,noone,nor,not,nothing,now,nowhere,of,off,often,on,once,one,only,onto,or,other,others,otherwise,our,ours,ourselves,out,outside,over,own,part,past,per,perhaps,please,put,rather,re,regarding,round,same,see,seem,seemed,seeming,seems,serious,several,she,should,show,side,since,sincere,six,sixty,so,some,somehow,someone,something,sometime,sometimes,somewhere,still,such,take,ten,than,that,the,their,them,themselves,then,thence,there,thereafter,thereby,therefore,therein,thereupon,these,they,thick,thin,third,this,those,though,three,through,throughout,thru,thus,to,together,too,top,toward,towards,twelve,twenty,two,un,under,underneath,until,unto,up,upon,us,very,via,want,was,wasnt,we,well,went,were,weve,what,whatever,when,whence,whenever,where,whereafter,whereas,whereby,wherein,whereupon,wherever,whether,which,while,whilst,whither,whoever,whole,whom,whose,why,will,with,within,without,would,yet,you,youll,your,youre,yours,yourself,yourselves,youve"
 
 # The GAP Help file and 404 message if unavailable
 GAP_HELP_URL = "https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/main/GAP%20Help.md"
@@ -241,10 +160,24 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self._helpers = callbacks.getHelpers()
         self._stderr = PrintWriter(callbacks.getStderr(), True)
         self.context = None
+        self.isBurpCommunity = False # We will assume False until we try to create an Issue
         self.roots = set()
+        self.currentReqResp = None # Object to hold the current request/response being processed
+        self.currentContentTypeInclude = False
+        self.allScopePrefixes = set()
         self.param_list = set()
         self.paramUrl_list = set()
+        self.paramSus_list = set()
+        self.paramSusUrl_list = set()
+        self.susParamText = set()
+        self.susParamIssue = set()
+        self.raisedIssues = set()
+        self.txtParamQuery = ""
+        self.txtParamQuerySus = ""
+        self.countParam = 0
         self.countParamUnique = 0
+        self.countParamSus = 0
+        self.countParamSusUnique = 0
         self.link_list = set()
         self.linkInScope_list = set()
         self.linkUrl_list = set()
@@ -277,13 +210,67 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     )
 
         # Compile the link regex
-        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(?<=\=)\s*\/[0-9a-zA-Z]+[^>\n]*", re.IGNORECASE)
+        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')", re.IGNORECASE)
         
         # Regex for checking Burp url when checking if in scope
         self.REGEX_BURPURL = re.compile(r"^(https?:)?\/\/([-a-zA-Z0-9_]+\.)?[-a-zA-Z0-9_]+\.[-a-zA-Z0-9_\.\?\#\&\=]+$", re.IGNORECASE)
         
-        # Regex for checking content-type
-        self.REGEX_CONTENTTYPE = re.compile(r"(?<=Content-Type\:\s)[a-zA-Z\-].+\/[a-zA-Z\-].+?(?=\s|\;)", re.IGNORECASE)
+        # Regex for JSON keys
+        self.REGEX_JSONKEYS = re.compile(r'"([a-zA-Z0-9$_\.-]*?)":')
+        
+        # Regex for XML attributes
+        self.REGEX_XMLATTR = re.compile(r"<([a-zA-Z0-9$_\.-]*?)>")
+        
+        # Regex for HTML input fields
+        self.REGEX_HTMLINP = re.compile(r"<input(.*?)>", re.IGNORECASE)
+        self.REGEX_HTMLINP_NAME = re.compile(r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))", re.IGNORECASE)    
+        self.REGEX_HTMLINP_ID = re.compile(r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))", re.IGNORECASE)
+    
+        # Regex for Sourcemap
+        self.REGEX_SOURCEMAP = re.compile(r"(?<=SourceMap\:\s).*?(?=\n)", re.IGNORECASE)
+        
+        # Regex for Potential Words
+        self.REGEX_WORDS = re.compile(r"(?<![\/])\b\w{3,}\b(?![\/])")
+        self.REGEX_WORDSUB = re.compile(r'\"|%22|<|%3c|>|%3e|\(|%28|\)|%29|\s|%20', re.IGNORECASE)
+        
+        # Regex for standard port
+        self.REGEX_PORT80 = re.compile(r":80[^0-9]")
+        self.REGEX_PORT443 = re.compile(r":443[^0-9]")
+        self.REGEX_PORTSUB = re.compile(r":80[^0-9]|:443[^0-9]")
+        self.REGEX_PORTSUB80 = re.compile(r":80")
+        self.REGEX_PORTSUB443 = re.compile(r":443")
+        
+        # Regex for valid parameter
+        self.REGEX_PARAM = re.compile(r"[0-9a-zA-Z_]")
+        
+        # Regex for param keys
+        self.REGEX_PARAMKEYS = re.compile(r"(?<=\?|&)[^\=\&\n].*?(?=\=|&|\n)")
+        
+        # Regex for parameters
+        self.REGEX_PARAMSPOSSIBLE = re.compile(r"(?<=[^\&|%26|\&amp;|\&#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|\x26])(\?|%3f|\&#0?63;|\u003f|\\u003f|\\\\u003f|\&|%26|\&amp;|\&#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\\x3d|\&quot;|\&#0?34;|\u0022|\\u0022|\\\\u0022|\&#0?39;)[a-z0-9_\-]{3,}(\=|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\x3d|\\x3d)(?=[^\=|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\x3d|\\x3d])", re.IGNORECASE)
+        self.REGEX_PARAMSSUB = re.compile(r"\?|%3f|\&#0?63;|\u003f|\\u003f|\\\\u003f|\=|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\\x3d|\x3d|%26|\&amp;|\&#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|\x26|\&quot;|\&#0?34;|\u0022|\\u0022|\\\\u0022|\\x22|\x22|\&#0?39;", re.IGNORECASE)
+        self.REGEX_JSLET = re.compile(r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))")
+        self.REGEX_JSVAR = re.compile(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))")
+        self.REGEX_JSCONSTS = re.compile(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))")
+        
+        # Regex for Request parameters
+        self.REGEX_PARAMSJSON = re.compile(r"{\"[^\}]+}")
+        self.REGEX_PARAMSJSONPARAMS = re.compile(r"(?<=\")[^\"\:]+(?=\":)")
+        
+        # Regex for links
+        self.REGEX_LINKSSLASH = re.compile(r"(\&#x2f;|\&#0?2f|%2f|\u002f|\\u002f|\\/)", re.IGNORECASE)
+        self.REGEX_LINKSCOLON = re.compile(r"(\&#x3a;|\&#0?3a|%3a|\u003a|\\u003a)", re.IGNORECASE)
+        self.REGEX_LINKSAND = re.compile(r"%26|\&amp;|\&#0?38;|\u0026|u0026|x26|\x26", re.IGNORECASE)
+        self.REGEX_LINKSEQUAL = re.compile(r"%3d|\&equals;|\&#0?61;|\u003d|u003d|x3d|\x3d", re.IGNORECASE)
+        self.REGEX_LINKBRACKET = re.compile(r"\(.*\)")
+        self.REGEX_LINKBRACES = re.compile(r"\{.*\}")
+        self.REGEX_LINKSEARCH1 = re.compile(r"^[^(]*\)+$")
+        self.REGEX_LINKSEARCH2 = re.compile(r"^[^{}]*\}+$")
+        self.REGEX_LINKSEARCH3 = re.compile(r"^[^\[]]*\]+$")
+        self.REGEX_LINKSEARCH4 = re.compile(r"<\/")
+        
+        # Regex for sus params
+        self.REGEX_SUSPARAM = re.compile("^[A-Za-z0-9_-]+$")
         
         # Make the Stop Word list and make all lower case
         try:
@@ -316,6 +303,121 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 print("WARNING: Could not import html5lib for more accurate parsing of words by beatifulsoup4 library.")
         except:
             pass
+    
+    def setContextHelp(self, enable):
+        if enable:
+            self.lblRequestParams.setToolTipText("These are identified by Burp itself through the API IParameter interface.")
+            self.cbParamUrl.setToolTipText("A parameter within the URL query string, identified by Burp itself.")
+            self.cbParamBody.setToolTipText("A parameter within the request body, identified by Burp itself.")
+            self.cbParamMultiPart.setToolTipText("The value of a parameter attribute within a multi-part message body (such as the name of an uploaded file), identified by Burp itself.")
+            self.cbParamJson.setToolTipText("An item of data within a JSON structure, identified by Burp itself.")
+            self.cbParamCookie.setToolTipText("An HTTP cookie name, identified by Burp itself.")
+            self.cbParamXml.setToolTipText("Items of data in XML structure, identified by Burp itself.")
+            self.cbParamXmlAttr.setToolTipText("Value of tag attributes in XML structure, identified by Burp itself.")
+            self.lblResponseParams.setToolTipText("These are identified by GAP, mainly with regular expressions.")
+            self.cbParamJSONResponse.setToolTipText("If the response has a MIME type of JSON then the Key names will be retrieved.")
+            self.cbParamXMLResponse.setToolTipText("If the response has a MIME type of XML then the XML attributes are retrieved.")
+            self.cbParamInputField.setToolTipText("If the response has a MIME type of HTML then the value of the NAME and ID attributes of any INPUT tags are retrieved.")
+            self.cbParamJSVars.setToolTipText("Javascript variables set with 'var', 'let' or 'const' are retrieved.")
+            self.cbParamFromLinks.setToolTipText("Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope,\nor there is just a path and no way of determining if it is in scope.")
+            self.cbReportSusParams.setToolTipText("If a 'sus' parameter is identified, a Burp custom Issue will be raised (unavailable in Burp Community Edition).\nThere will be no markers in the Request/Response of the Issue showing where the named parameter can be found because including this functionality\nseriously increases the time GAP can take to run, so this is not a feature at the moment.\nFor Burp Community Edition, the details of the parameter will be written to the extension output.")
+            self.cbWordLower.setToolTipText("Any word found that contains an uppercase letter will also be added as an all lowercase word.")
+            self.cbWordPlurals.setToolTipText("If checked, then for each word found, a suitable singular or plural version will also be added to the output.")
+            self.cbWordPaths.setToolTipText("Any path words in selected links will be added as words.")
+            self.cbWordParams.setToolTipText("If the Parameters Mode is enabled, all potential params will also be added to the word list.")
+            self.cbWordComments.setToolTipText("If checked, all words within HTML comments will be considered.")
+            self.cbWordImgAlt.setToolTipText("If checked, all words with the ALT attribute of IMG tags will be considered.")
+            self.cbWordDigits.setToolTipText("If un-checked, then any words with numeric digits will be excluded from output.")
+            self.lblWordsMaxLen.setToolTipText("The maximum length of words that will be output (this excludes plurals of minimum length words).\nThis can be a minimum of 3.")
+            self.inWordsMaxlen.setToolTipText("The maximum length of words that will be output (this excludes plurals of minimum length words).\nThis can be a minimum of 3.")
+            self.cbToolTips.setToolTipText("Turn contextual help on or off.")
+            self.cbIncludePathWords.setToolTipText("The words in the response URL path are included as potential parameters if the URL is in scope.")
+            self.cbSiteMapEndpoints.setToolTipText("This will include endpoints from the Burp Site map (what was selected) in the potential Link list, if they are in scope.")
+            self.cbRelativeLinks.setToolTipText("If checked, links found that start with ./ or ../ will be included in the results.")
+            self.cbLinkPrefix.setToolTipText("If checked, the value(s) in the text field will be prefixed to any links found that do not have a domain, e.g. /api/user/1.\nMultiple domains can be provided, separated by a semicolon, e.g. http://example.com;https://sub.example.com")
+            self.inLinkPrefix.setToolTipText("You can provide multiple links by separating with a semicolon, e.g. https://example.com;https://example.co.uk")
+            self.cbLinkPrefixScope.setToolTipText("If checked, the root of each target selected in the Site Map will be prefixed to any links found that do not have a domain, e.g. /api/user/1")
+            self.cbUnPrefixed.setToolTipText("If the 'Prefix with selected target(s)' or 'Prefix with link(s)' option is checked then this option can be checked to include\nthe original un-prefixed link in addition to the prefixed link.")
+            self.cbSaveFile.setToolTipText("If this option is checked then when GAP completes a run, a file will be created with the potential parameters, with potential links, and target specific wordlist.\nThese files will be created in the specified directory.\nIf the directory is invalid then the users home directory will be used.")
+            self.inSaveDir.setToolTipText("The directory where a file will be created with the potential parameters, with potential links, and target specific wordlist.")
+            self.btnChooseDir.setToolTipText("Choose the directory where output files will be saved.")
+            self.cbShowSusParams.setToolTipText("If this feature is ticked, only potential parameters that are 'sus' are shown followed by the associated vulnerability type(s).")
+            self.cbShowQueryString.setToolTipText("This checkbox can be used to switch between the list of parameters and a concatenated\nquery string with all parameters with a value given in the following text box.")
+            self.inQueryStringVal.setToolTipText("This is a value that is used to create the concatenated query string, with each parameter given this value followed by a unique number of the parameter.\nThis query string can be used to manually append to a URL and check for reflections.")
+            self.btnRestoreDefaults.setToolTipText("If for any reason you want to revert to the default configuration options, you can click this button.")
+            self.btnSave.setToolTipText("Any changes made to the configuration settings of GAP can be saved for future use by clicking this button.")
+            self.progBar.setToolTipText("What request is being processed out of the total number of requests for current target.")
+            self.progStage.setToolTipText("What Site Map target is being processed out of the total number of targets selected.")
+            self.cbShowParamOrigin.setToolTipText("If this is ticked, the potential parameter will be followed by the HTTP request endpoint (in square brackets) that the parameter was found in.\nA parameter could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.")
+            self.cbShowLinkOrigin.setToolTipText("If this feature is ticked, the potential link will be followed by the HTTP request endpoint (in square brackets) that the link was found in.\nA link could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.")
+            self.cbInScopeOnly.setToolTipText("If this feature is ticked, and the potential links contain a host, then this link will be checked against the Burp Target Scope.\nIf it is not in scope then the link will be removed from the output.\nNOTE: This does not take any Burp 'Exclude from scope' entries into account.\nAlso, if it is not possible to determine the scope (e.g. it may just be a path without a host) then it will be included as in scope to avoid omitting anything potentially useful.")
+            self.lblLinkFilter.setToolTipText("Any value entered in the Filter input field followed by ENTER or pressing 'Apply filter' will determine which links will be displayed.\nThis can depend on the values of the other two options.")
+            self.cbLinkFilterNeg.setToolTipText("If selected, any link containing the Filter text will NOT be displayed.\nIf unselected, then only links containing the filter will be displayed.")
+            self.cbLinkCaseSens.setToolTipText("If selected, the value is the Filter input field will be case sensitive when determining which Links to display.")
+            self.inLinkFilter.setToolTipText("Any value entered in the Filter input field followed by ENTER or pressing 'Apply filter' will determine which links will be displayed.\nThis can depend on the values of the other two options.")
+            self.cbShowWordOrigin.setToolTipText("If this feature is ticked, the words will be followed by the HTTP request endpoint (in square brackets) that the word was found in.\nA word could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.\nIf the word was generated by GAP (e.g. a plural or singular version) then it will be followed by [GAP] instead of an origin endpoint.")
+            self.lblStopWords.setToolTipText("The term 'stop words' comes from Natural Language Processing where they are common words that will be excluded from content.\nIf a word exists in this list before running, then it will be excluded from output.")
+            self.inStopWords.setToolTipText("The term 'stop words' comes from Natural Language Processing where they are common words that will be excluded from content.\nIf a word exists in this list before running, then it will be excluded from output.")
+            self.cbExclusions.setToolTipText("If the option is selected it will be applied when run.\nThe text field contains a comma separated list of values.\nIf any of these values exists in a potential link found, then it will be excluded from the final list.\nThere is a initial default list determined by the DEFAULT_EXCLUSIONS constant, but you can change this and save your settings.\nIf the option is not selected, all links will be returned.")
+            self.inExclusions.setToolTipText("If the option is selected it will be applied when run. The text field contains a comma separated list of values.\nIf any of these values exists in a potential link found, then it will be excluded from the final list.\nThere is a initial default list determined by the DEFAULT_EXCLUSIONS constant, but you can change this and save your settings.\nIf the option is not selected, all links will be returned.")
+        else:
+            self.lblRequestParams.setToolTipText("")
+            self.cbParamUrl.setToolTipText("")
+            self.cbParamBody.setToolTipText("")
+            self.cbParamMultiPart.setToolTipText("")
+            self.cbParamJson.setToolTipText("")
+            self.cbParamCookie.setToolTipText("")
+            self.cbParamXml.setToolTipText("")
+            self.cbParamXmlAttr.setToolTipText("")
+            self.lblResponseParams.setToolTipText("")
+            self.cbParamJSONResponse.setToolTipText("")
+            self.cbParamXMLResponse.setToolTipText("")
+            self.cbParamInputField.setToolTipText("")
+            self.cbParamJSVars.setToolTipText("")
+            self.cbParamFromLinks.setToolTipText("")
+            self.cbReportSusParams.setToolTipText("")
+            self.cbWordLower.setToolTipText("")
+            self.cbWordPlurals.setToolTipText("")
+            self.cbWordPaths.setToolTipText("")
+            self.cbWordParams.setToolTipText("")
+            self.cbWordComments.setToolTipText("")
+            self.cbWordImgAlt.setToolTipText("")
+            self.cbWordDigits.setToolTipText("")
+            self.lblWordsMaxLen.setToolTipText("")
+            self.inWordsMaxlen.setToolTipText("")
+            self.cbToolTips.setToolTipText("")
+            self.cbIncludePathWords.setToolTipText("")
+            self.cbSiteMapEndpoints.setToolTipText("")
+            self.cbRelativeLinks.setToolTipText("")
+            self.cbLinkPrefix.setToolTipText("")
+            self.inLinkPrefix.setToolTipText("")
+            self.cbLinkPrefixScope.setToolTipText("")
+            self.cbUnPrefixed.setToolTipText("")
+            self.cbSaveFile.setToolTipText("")
+            self.inSaveDir.setToolTipText("")
+            self.btnChooseDir.setToolTipText("")
+            self.cbShowSusParams.setToolTipText("")
+            self.cbShowQueryString.setToolTipText("")
+            self.inQueryStringVal.setToolTipText("")
+            self.btnRestoreDefaults.setToolTipText("")
+            self.btnSave.setToolTipText("")
+            self.progBar.setToolTipText("")
+            self.progStage.setToolTipText("")
+            self.cbShowParamOrigin.setToolTipText("")
+            self.cbShowLinkOrigin.setToolTipText("")
+            self.cbInScopeOnly.setToolTipText("")
+            self.lblLinkFilter.setToolTipText("")
+            self.cbLinkFilterNeg.setToolTipText("")
+            self.cbLinkCaseSens.setToolTipText("")
+            self.inLinkFilter.setToolTipText("")
+            self.cbShowWordOrigin.setToolTipText("")
+            self.lblStopWords.setToolTipText("")
+            self.inStopWords.setToolTipText("")
+            self.cbExclusions.setToolTipText("")
+            self.inExclusions.setToolTipText("")
+    
+    def cbToolTips_clicked(self ,e=None):
+        self.setContextHelp(self.cbToolTips.isSelected())
         
     def _createUI(self):
         """
@@ -344,39 +446,24 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         # Request parameter section
         self.lblRequestParams = JLabel("REQUEST PARAMETERS")
-        self.lblRequestParams.setToolTipText("These are identified by Burp itself through the API IParameter interface")
         fnt = self.lblRequestParams.getFont()
         self.lblRequestParams.setFont(fnt.deriveFont(fnt.getStyle() | Font.BOLD))
         self.cbParamUrl = self.defineCheckBox("Query string params")
         self.cbParamBody = self.defineCheckBox("Message body params")
-        self.cbParamMultiPart = self.defineCheckBox(
-            "Param attribute in multi-part message body"
-        )
+        self.cbParamMultiPart = self.defineCheckBox("Param attribute in multi-part message body")
         self.cbParamJson = self.defineCheckBox("JSON params")
         self.cbParamCookie = self.defineCheckBox("Cookie names", False)
-        self.cbParamXml = self.defineCheckBox(
-            "Items of data in XML structure", False
-        )
-        self.cbParamXmlAttr = self.defineCheckBox(
-            "Value of tag attributes in XML structure", False
-        )
+        self.cbParamXml = self.defineCheckBox("Items of data in XML structure", False)
+        self.cbParamXmlAttr = self.defineCheckBox("Value of tag attributes in XML structure", False)
 
         # Response parameter section
         self.lblResponseParams = JLabel("RESPONSE PARAMETERS")
-        self.lblResponseParams.setToolTipText("These are identified by GAP, mainly with regular expressions")
         fnt = self.lblResponseParams.getFont()
         self.lblResponseParams.setFont(fnt.deriveFont(fnt.getStyle() | Font.BOLD))
         self.cbParamJSONResponse = self.defineCheckBox("JSON params", False)
-        self.cbParamXMLResponse = self.defineCheckBox(
-            "Value of tag attributes in XML structure", False
-        )
-        self.cbParamInputField = self.defineCheckBox(
-            "Name and Id attributes of HTML input fields", False
-        )
-        self.cbParamJSVars = self.defineCheckBox(
-            "Javascript variables and constants", False
-        )
-        self.cbParamMetaName = self.defineCheckBox("Name attribute of Meta tags", False)
+        self.cbParamXMLResponse = self.defineCheckBox("Value of tag attributes in XML structure", False)
+        self.cbParamInputField = self.defineCheckBox("Name and Id attributes of HTML input fields", False)
+        self.cbParamJSVars = self.defineCheckBox("Javascript variables and constants", False)
         self.cbParamFromLinks = self.defineCheckBox("Params from links found", False)
         self.cbParamsEnabled = self.defineCheckBox("Parameters", True)
         self.cbParamsEnabled.addItemListener(self.cbParamsEnabled_clicked)
@@ -404,12 +491,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.lblWhichWords.setForeground(COLOR_BURP_ORANGE)
 
         # Request words section
-        self.cbWordPlurals = self.defineCheckBox("Create singular/plural words")
+        self.cbWordPlurals = self.defineCheckBox("Create singular/plural word?")
         self.cbWordPaths = self.defineCheckBox("Include URL path words?")
         self.cbWordParams = self.defineCheckBox("Include potential params?")
         self.cbWordComments = self.defineCheckBox("Include HTML comments?")
         self.cbWordImgAlt = self.defineCheckBox("Include IMG ALT attribute?")
         self.cbWordDigits = self.defineCheckBox("Include words with digits?")
+        self.cbWordLower = self.defineCheckBox("Create lowercase words?")
         self.lblWordsMaxLen = JLabel("Maximum length of words")
         self.lblWordsMaxLen2 = JLabel("(min. 3 - excludes plurals)")
         self.inWordsMaxlen = JTextField("", 2 ,actionPerformed=self.checkMaxWordsLen)
@@ -490,19 +578,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.lblOutputOptions = JLabel("Other options:")
         self.lblOutputOptions.setFont(FONT_HEADER)
         self.lblOutputOptions.setForeground(COLOR_BURP_ORANGE)
-        self.cbIncludeCommonParams = self.defineCheckBox(
-            "Include common parameters?", True
-        )
-        self.cbIncludePathWords = self.defineCheckBox(
-            "Include URL path words?", False
-        )
-        self.cbSiteMapEndpoints = self.defineCheckBox(
-            "Include site map endpoints in link list?", False
-        )
+        self.cbToolTips = self.defineCheckBox("Show contextual help", True)
+        self.cbToolTips.addItemListener(self.cbToolTips_clicked)
+        self.cbToolTips.setForeground(COLOR_BURP_ORANGE)
+        
+        self.cbReportSusParams = self.defineCheckBox("Report \"sus\" parameters?", True)
+        self.cbIncludePathWords = self.defineCheckBox("Include URL path words?", False)
+        self.cbSiteMapEndpoints = self.defineCheckBox("Include site map endpoints?", False)
+        self.cbRelativeLinks = self.defineCheckBox("Include relative links?")
         self.cbLinkPrefix = self.defineCheckBox("Prefix with link(s):")
         self.cbLinkPrefix.addItemListener(self.cbLinkPrefix_clicked)
         self.inLinkPrefix = JTextField(30,actionPerformed=self.checkLinkPrefix)
-        self.inLinkPrefix.setToolTipText("You can provide multiple links by separating with a semicolon, e.g. https://example.com;https://example.co.uk")
         self.cbLinkPrefixScope = self.defineCheckBox("Prefix with selected Target(s)")
         self.cbLinkPrefixScope.addItemListener(self.cbLinkPrefixScope_clicked)
         self.cbLinkPrefixScope.setSelected(False)
@@ -511,25 +597,19 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbSaveFile.addItemListener(self.cbSaveFile_clicked)
         self.inSaveDir = JTextField(30)
         self.inSaveDir.setEditable(False)
-        self.btnChooseDir = JButton(
-            "Choose...", actionPerformed=self.btnChooseDir_clicked
-        )
-        self.cbShowQueryString = self.defineCheckBox(
-            "Show params as query string with value", False
-        )
+        self.btnChooseDir = JButton("Choose...", actionPerformed=self.btnChooseDir_clicked)
+        self.cbShowSusParams = self.defineCheckBox("Show \"sus\"") 
+        self.cbShowSusParams.setEnabled(False)
+        self.cbShowSusParams.addItemListener(self.changeParamDisplay)
+        self.cbShowQueryString = self.defineCheckBox("Show query string with value", False)
         self.cbShowQueryString.setEnabled(False)
         self.cbShowQueryString.addItemListener(self.cbShowQueryString_clicked)
-        self.lblQueryStringVal = JLabel("Concatenated param value")
-        self.inQueryStringVal = JTextField(6)
+        self.inQueryStringVal = JTextField(5)
         
         # The Restore/Save section
         self.btnSave = JButton("Save options", actionPerformed=self.btnSave_clicked)
-        self.btnRestoreDefaults = JButton(
-            "Restore defaults", actionPerformed=self.btnRestoreDefaults_clicked
-        )
-        self.btnCancel = JButton(
-            "   COMPLETED    ", actionPerformed=self.btnCancel_clicked
-        )
+        self.btnRestoreDefaults = JButton("Restore defaults", actionPerformed=self.btnRestoreDefaults_clicked)
+        self.btnCancel = JButton("   COMPLETED    ", actionPerformed=self.btnCancel_clicked)
         self.btnCancel.setBackground(COLOR_BURP_ORANGE)
         self.btnCancel.setForeground(Color.WHITE)
         self.btnCancel.setFont(self.btnCancel.getFont().deriveFont(Font.BOLD))
@@ -547,7 +627,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.grpConfig = JPanel()
         self.grpConfig.add(self.btnRestoreDefaults)
         self.grpConfig.add(self.btnSave)
-        self.grpConfig.add(JLabel("     "))
+        self.grpConfig.add(JLabel("    "))
         self.grpConfig.add(self.btnCancel)
         self.grpConfig.add(self.progBar)
         self.grpConfig.add(self.progStage)
@@ -571,6 +651,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbShowParamOrigin.setVisible(True)
         self.cbShowParamOrigin.setEnabled(False)
         self.cbShowParamOrigin.addItemListener(self.changeParamDisplay)
+        self.outParamSus = JTextArea(30, 100)
+        self.outParamSus.setLineWrap(True)
+        self.outParamSus.setEditable(False)
         self.outParamQuery = JTextArea(30, 100)
         self.outParamQuery.setLineWrap(True)
         self.outParamQuery.setEditable(False)
@@ -655,6 +738,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Initialise text fields to hold variations of outParamList JTextArea
         self.txtParamsWithURL = ""
         self.txtParamsOnly = ""
+        self.txtParamsSusWithURL = ""
+        self.txtParamsSusOnly = ""
         self.txtParamsQuery = ""
         
         # Initialise text fields to hold variations of outWordList JTextArea
@@ -677,8 +762,21 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbExclusions.addItemListener(self.changeLinkExclusions)
         self.inExclusions = JTextField(300)
 
+        # Debug info
+        self.txtDebug = JTextArea(85, 1)
+        self.txtDebug.setVisible(False)
+        self.txtDebug.setLineWrap(True)
+        self.txtDebug.setEditable(False)
+        self.txtDebugDetail = JTextArea(85, 1)
+        self.txtDebugDetail.setVisible(False)
+        self.txtDebugDetail.setLineWrap(True)
+        self.txtDebugDetail.setEditable(False)
+        
         # Restore saved config settings
         self.restoreSavedConfig()
+
+        # Determine whether to "show context help"
+        self.setContextHelp(self.cbToolTips.isSelected())
 
         # Set UI layout
         layout.setHorizontalGroup(
@@ -728,13 +826,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         )
                         .addGroup(
                             layout.createParallelGroup()
-                            .addComponent(self.cbIncludeCommonParams)
+                            .addComponent(self.cbReportSusParams)
                             .addComponent(self.lblResponseParams)
                             .addComponent(self.cbParamJSONResponse)
                             .addComponent(self.cbParamXMLResponse)
                             .addComponent(self.cbParamInputField)
                             .addComponent(self.cbParamJSVars)
-                            .addComponent(self.cbParamMetaName)
                             .addComponent(self.cbParamFromLinks)
                         )
                     )
@@ -749,13 +846,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         layout.createSequentialGroup()
                         .addComponent(self.cbUnPrefixed)
                         .addComponent(self.cbSiteMapEndpoints)
+                        .addComponent(self.cbRelativeLinks)
                     )
                     .addComponent(self.lblWhichWords)
                     .addGroup(
                         layout.createSequentialGroup()
                         .addGroup(
                             layout.createParallelGroup()
-                            .addComponent(self.cbWordDigits)
+                            .addComponent(self.cbWordLower)
                             .addComponent(self.cbWordPlurals)
                             .addGroup(
                                 layout.createSequentialGroup()
@@ -776,11 +874,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         )
                         .addGroup(
                             layout.createParallelGroup()
+                            .addComponent(self.cbWordDigits)
                             .addComponent(self.cbWordPaths)
                             .addComponent(self.cbWordParams)
                         )
                     )
-                    .addComponent(self.lblOutputOptions)
+                    .addGroup(
+                        layout.createSequentialGroup()
+                        .addComponent(self.lblOutputOptions)
+                        .addComponent(self.cbToolTips)
+                    )
                     .addGroup(
                         layout.createSequentialGroup()
                         .addComponent(self.cbSaveFile)
@@ -792,6 +895,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         GroupLayout.PREFERRED_SIZE,
                         GroupLayout.PREFERRED_SIZE,
                         GroupLayout.PREFERRED_SIZE,
+                    )
+                    .addComponent(self.txtDebug,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
+                    )
+                    .addComponent(self.txtDebugDetail,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
                     )
                 )
                 .addGroup(
@@ -808,6 +921,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             .addComponent(self.scroll_outParamList)
                             .addGroup(
                                 layout.createSequentialGroup()
+                                .addComponent(self.cbShowSusParams)
                                 .addComponent(self.cbShowQueryString)
                                 .addComponent(
                                     self.inQueryStringVal,
@@ -906,13 +1020,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         )
                         .addGroup(
                             layout.createSequentialGroup()
-                            .addComponent(self.cbIncludeCommonParams)
+                            .addComponent(self.cbReportSusParams)
                             .addComponent(self.lblResponseParams)
                             .addComponent(self.cbParamJSONResponse)
                             .addComponent(self.cbParamXMLResponse)
                             .addComponent(self.cbParamInputField)
                             .addComponent(self.cbParamJSVars)
-                            .addComponent(self.cbParamMetaName)
                             .addComponent(self.cbParamFromLinks)
                         )
                     )
@@ -930,13 +1043,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         layout.createParallelGroup()
                         .addComponent(self.cbUnPrefixed)
                         .addComponent(self.cbSiteMapEndpoints)
+                        .addComponent(self.cbRelativeLinks)
                     )
                     .addComponent(self.lblWhichWords)
                     .addGroup(
                         layout.createParallelGroup()
                         .addGroup(
                             layout.createSequentialGroup()
-                            .addComponent(self.cbWordDigits)
+                            .addComponent(self.cbWordLower)
                             .addComponent(self.cbWordPlurals)
                             .addGroup(
                                 layout.createParallelGroup()
@@ -957,11 +1071,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         )
                         .addGroup(
                             layout.createSequentialGroup()
+                            .addComponent(self.cbWordDigits)
                             .addComponent(self.cbWordPaths)
                             .addComponent(self.cbWordParams)
                         )
                     )
-                    .addComponent(self.lblOutputOptions)
+                    .addGroup(
+                        layout.createParallelGroup()
+                        .addComponent(self.lblOutputOptions)
+                        .addComponent(self.cbToolTips)
+                    )
                     .addGroup(
                         layout.createParallelGroup()
                         .addComponent(self.cbSaveFile)
@@ -978,6 +1097,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         GroupLayout.PREFERRED_SIZE,
                         GroupLayout.PREFERRED_SIZE,
                         GroupLayout.PREFERRED_SIZE,
+                    )
+                    .addComponent(self.txtDebug,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
+                    )
+                    .addComponent(self.txtDebugDetail,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
+                        GroupLayout.DEFAULT_SIZE,
                     )
                 )
                 .addGroup(
@@ -999,6 +1128,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             )
                             .addGroup(
                                 layout.createParallelGroup()
+                                .addComponent(self.cbShowSusParams)
                                 .addComponent(self.cbShowQueryString)
                                 .addComponent(
                                     self.inQueryStringVal,
@@ -1071,7 +1201,15 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         try:
             self.setTabDefaultColor()
-            Desktop.getDesktop().browse(URI(URL_GITHUB))
+        # If the user held down the Ctrl button when clicking the header, then hide the header
+            if str(e).find("Ctrl+Button1") > 0:
+                self.btnLogo.setVisible(False)
+            elif str(e).find("Shift+Button1") > 0:
+                self.txtDebug.setVisible(True)
+                self.txtDebug.text = "DEBUG TEXT WILL BE DISPLAYED"
+                self.txtDebugDetail.setVisible(True)
+            else:
+                Desktop.getDesktop().browse(URI(URL_GITHUB))
         except:
             pass
     
@@ -1097,8 +1235,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if self.cbShowQueryString.isSelected():
                 self.scroll_outParamList.setViewportView(self.outParamQuery)
             else:
-                self.scroll_outParamList.setViewportView(self.outParamList)
+                if self.cbShowSusParams.isSelected():
+                    self.scroll_outParamList.setViewportView(self.outParamSus)
+                else:
+                    self.scroll_outParamList.setViewportView(self.outParamList)
             self.scroll_outParamList.visible = True
+            self.cbShowSusParams.visible = True
             self.cbShowQueryString.visible = True
             self.inQueryStringVal.visible = True
             # Also remove the word option "Include potential parameters"
@@ -1108,6 +1250,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.lblParamList.visible = False
             self.cbShowParamOrigin.visible = False
             self.scroll_outParamList.visible = False
+            self.cbShowSusParams.visible = False
             self.cbShowQueryString.visible = False
             self.inQueryStringVal.visible = False
             # If no other mode is selected, reselect Links
@@ -1218,37 +1361,93 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
     def changeParamDisplay(self, e=None):
         """
-        The Parameter event called when the "Show origin" checkbox is changed
+        The Parameter event called when the "Show origin", "Show sus" or "Show query string with value" checkbox is changed
         """
         try:
-            self.outParamList.text = "UPDATING..."
-            
-            # Only show the origin URLs if the Show origin checkbox is ticked
-            # The list of params depends on the settings selected
-            if self.cbShowParamOrigin.isSelected():
-                self.outParamList.text = self.txtParamsWithURL
-                self.cbShowQueryString.setSelected(False)
-            else:
-                if self.cbShowQueryString.isSelected():
-                    self.outParamList.text = self.txtParamsQuery
-                else:
-                    self.outParamList.text = self.txtParamsOnly
-            
-            # Change the number of params in the "Potential param found" label depending if a filter is in place
-            #if str(self.countParamUnique) == str(self.outParamList.getLineCount()-1):
-            if self.cbShowParamOrigin.isSelected():
-                self.lblParamList.text = (
-                    "Potential params found - " + str(self.countParamUnique) + " unique:"
-                )
-            else:
-                self.lblParamList.text = (
-                    "Potential params found - "
-                    + str(self.outParamList.getLineCount())
-                    + " filtered:"
-                )
+            if self.cbShowParamOrigin.isEnabled():
+                self.setTabDefaultColor()
+                self.outParamList.text = "UPDATING..."
                 
-            # Reposition the display of the Param list to the start
-            self.outParamList.setCaretPosition(0)
+                # Only show the origin URLs if the Show origin checkbox is ticked
+                # The list of params depends on the settings selected
+                if self.cbShowParamOrigin.isSelected():
+                    if self.cbShowSusParams.isSelected():
+                        self.outParamList.text = self.txtParamsSusWithURL
+                    else:
+                        self.outParamList.text = self.txtParamsWithURL
+                    self.scroll_outParamList.setViewportView(self.outParamList)
+                    self.cbShowQueryString.setSelected(False)
+                else:
+                    if self.cbShowQueryString.isSelected():
+                        if self.cbShowSusParams.isSelected():
+                            if self.txtParamQuerySus == "" or self.txtParamQuerySus == "NO PARAMETERS FOUND":
+                                index = 0
+                                paramQuery = ""
+                                self.outParamQuery.text = "UPDATING..."
+                                for param in sorted(self.paramSus_list):
+                                    self.checkIfCancel()
+                                    # Build a list of parameters in a concatenated string with unique values
+                                    paramQuery = paramQuery + param.split("  [")[0] + "=" + self.inQueryStringVal.text + str(index) + "&"
+                                    index += 1
+                                self.txtParamQuerySus = paramQuery.rstrip("&")
+                            self.outParamQuery.text = self.txtParamQuerySus
+                        else:
+                            # Set the values if not already set
+                            if self.txtParamQuery == "" or self.txtParamQuery == "NO PARAMETERS FOUND":
+                                index = 0
+                                paramQuery = ""
+                                self.outParamQuery.text = "UPDATING..."
+                                for param in sorted(self.param_list):
+                                    self.checkIfCancel()
+                                    # Build a list of parameters in a concatenated string with unique values
+                                    paramQuery = paramQuery + param + "=" + self.inQueryStringVal.text + str(index) + "&"
+                                    index += 1
+                                self.txtParamQuery = paramQuery.rstrip("&")
+                            self.outParamQuery.text = self.txtParamQuery
+                            
+                        self.scroll_outParamList.setViewportView(self.outParamQuery)
+
+                        # Reposition the display of the Param list to the start
+                        self.outParamQuery.setCaretPosition(0)
+                    else:
+                        if self.cbShowParamOrigin.isSelected():
+                            if self.cbShowSusParams.isSelected():
+                                self.outParamList.text = self.txtParamsSusWithURL
+                            else:
+                                self.outParamList.text = self.txtParamsWithURL
+                        else:
+                            if self.cbShowSusParams.isSelected():
+                                self.outParamList.text = self.txtParamsSusOnly
+                            else:
+                                self.outParamList.text = self.txtParamsOnly
+                        self.scroll_outParamList.setViewportView(self.outParamList)
+                
+                # Change the number of params in the "Potential param found" label depending if a filter is in place
+                if self.cbShowParamOrigin.isSelected():
+                    if self.cbShowSusParams.isSelected():
+                        self.lblParamList.text = (
+                            "Potential params found - " + str(self.countParamSusUnique) + " unique:"
+                        )
+                    else:
+                        self.lblParamList.text = (
+                        "Potential params found - " + str(self.countParamUnique) + " unique:"
+                    )
+                else:
+                    if self.cbShowSusParams.isSelected():
+                        self.lblParamList.text = (
+                            "Potential params found - "
+                            + str(self.countParamSus)
+                            + " filtered:"
+                        )
+                    else:
+                        self.lblParamList.text = (
+                            "Potential params found - "
+                            + str(self.countParam)
+                            + " filtered:"
+                        )
+                    
+                # Reposition the display of the Param list to the start
+                self.outParamList.setCaretPosition(0)
 
         except Exception as e:
             self._stderr.println("changeParamDisplay 1")
@@ -1279,7 +1478,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # The list of words depends on the settings selected
             if self.cbShowWordOrigin.isSelected():
                 self.outWordList.text = self.txtWordsWithURL
-                self.cbShowQueryString.setSelected(False)
             else:
                 self.outWordList.text = self.txtWordsOnly
             
@@ -1343,41 +1541,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         except Exception as e:
             self._stderr.println("changeLinkDisplay 1")
             self._stderr.println(e)
-            
+    
     def cbShowQueryString_clicked(self, e=None):
         """
         The event called when the "Show parameters as concatenated query string" checkbox is changed
         """
         self.setTabDefaultColor()
-        
-        # Show the parameter list or query string depending on the option selected
-        if self.cbShowQueryString.isSelected():
-            # Set the values if not already set
-            if self.outParamQuery.text == "" or self.outParamQuery.text == "NO PARAMETERS FOUND":
-                index = 0
-                paramQuery = ""
-                self.outParamQuery.text = "UPDATING..."
-                for param in sorted(self.param_list):
-                    self.checkIfCancel()
-                    # Build a list of parameters in a concatenated string with unique values
-                    paramQuery = paramQuery + param + "=" + self.inQueryStringVal.text + str(index) + "&"
-                    index += 1
-                self.outParamQuery.text = paramQuery
-                # Clean up
-                self.param_list = set()
-                
-            self.scroll_outParamList.setViewportView(self.outParamQuery)
-            self.cbShowParamOrigin.setSelected(False)
-            # Reposition the display of the Param list to the start
-            self.outParamQuery.setCaretPosition(0)
-        else:
-            if self.cbShowParamOrigin.isSelected():
-                self.outParamList.text = self.txtParamsWithURL
-            else:
-                self.outParamList.text = self.txtParamsOnly
-            self.scroll_outParamList.setViewportView(self.outParamList)
-            # Reposition the display of the Param list to the start
-            self.outParamList.setCaretPosition(0)
+
+        # If the option was enabled and selected, unselect the Parameter "Show origin" option and then redisplay
+        if self.cbShowQueryString.isEnabled():
+            if self.cbShowQueryString.isSelected():
+                self.cbShowParamOrigin.setSelected(False)
+            self.changeParamDisplay()
         
     def btnHelp_clicked(self, e=None):
         """
@@ -1461,25 +1636,25 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbParamCookie.setEnabled(enabled)
             self.cbParamXml.setEnabled(enabled)
             self.cbParamXmlAttr.setEnabled(enabled)
-            self.lblQueryStringVal.setEnabled(enabled)
             self.inQueryStringVal.setEnabled(enabled)
-            self.cbIncludeCommonParams.setEnabled(enabled)
+            self.cbReportSusParams.setEnabled(enabled)
             self.cbIncludePathWords.setEnabled(enabled)
             self.lblResponseParams.setEnabled(enabled)
             self.cbParamJSONResponse.setEnabled(enabled)
             self.cbParamXMLResponse.setEnabled(enabled)
             self.cbParamInputField.setEnabled(enabled)
             self.cbParamJSVars.setEnabled(enabled)
-            self.cbParamMetaName.setEnabled(enabled)
             if self.cbLinksEnabled.isSelected():
                 self.cbParamFromLinks.setEnabled(enabled)
             else:
                 self.cbParamFromLinks.setEnabled(False)
             if enabled and self.countParamUnique > 0:
                 self.cbShowParamOrigin.setEnabled(True)
+                self.cbShowSusParams.setEnabled(True)
                 self.cbShowQueryString.setEnabled(True)
             else:
                 self.cbShowParamOrigin.setEnabled(False)
+                self.cbShowSusParams.setEnabled(False)
                 self.cbShowQueryString.setEnabled(False)
         except Exception as e:
             self._stderr.println("setEnabledParamOptions 1")
@@ -1493,6 +1668,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Enable/disable all Link options
         try:
             self.cbSiteMapEndpoints.setEnabled(enabled)
+            self.cbRelativeLinks.setEnabled(enabled)
             self.inExclusions.setEnabled(enabled)
             self.cbLinkPrefix.setEnabled(enabled)
             self.inLinkPrefix.setEnabled(enabled)
@@ -1539,6 +1715,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbWordComments.setEnabled(enabled)
             self.cbWordDigits.setEnabled(enabled)
             self.cbWordImgAlt.setEnabled(enabled)
+            self.cbWordLower.setEnabled(enabled)
             self.cbWordPaths.setEnabled(enabled)
             self.cbWordPlurals.setEnabled(enabled)
             self.lblWordsMaxLen.setEnabled(enabled)
@@ -1575,6 +1752,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.inSaveDir.setEnabled(enable)
             self.btnChooseDir.setEnabled(enable)
             self.btnSave.setEnabled(enable)
+            self.cbToolTips.setEnabled(enable)
         except Exception as e:
             self._stderr.println("setEnabledAll 1")
             self._stderr.println(e)
@@ -1809,13 +1987,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 "paramCookie": self.cbParamCookie.isSelected(),
                 "paramXml": self.cbParamXml.isSelected(),
                 "paramXmlAttr": self.cbParamXmlAttr.isSelected(),
-                "includeCommonParams": self.cbIncludeCommonParams.isSelected(),
+                "reportSusParams": self.cbReportSusParams.isSelected(),
                 "includePathWords": self.cbIncludePathWords.isSelected(),
                 "paramJsonResponse": self.cbParamJSONResponse.isSelected(),
                 "paramXmlResponse": self.cbParamXMLResponse.isSelected(),
                 "paramInputField": self.cbParamInputField.isSelected(),
                 "paramJSVars": self.cbParamJSVars.isSelected(),
-                "paramMetaName": self.cbParamMetaName.isSelected(),
                 "saveDir": self.inSaveDir.text,
                 "paramFromLinks": self.cbParamFromLinks.isSelected(),
                 "exclusionsEnabled": self.cbExclusions.isSelected(),
@@ -1825,6 +2002,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 "showWordOrigin": self.cbShowWordOrigin.isSelected(),
                 "inScopeOnly": self.cbInScopeOnly.isSelected(),
                 "sitemapEndpoints": self.cbSiteMapEndpoints.isSelected(),
+                "relativeLinks": self.cbRelativeLinks.isSelected(),
                 "paramsEnabled": self.cbParamsEnabled.isSelected(),
                 "linksEnabled": self.cbLinksEnabled.isSelected(),
                 "linkPrefixChecked": self.cbLinkPrefix.isSelected(),
@@ -1838,8 +2016,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 "wordDigits": self.cbWordDigits.isSelected(),
                 "wordComments": self.cbWordComments.isSelected(),
                 "wordImgAlt": self.cbWordImgAlt.isSelected(),
+                "wordLower": self.cbWordLower.isSelected(),
                 "wordMaxLen": self.inWordsMaxlen.text,
-                "stopWords": self.inStopWords.text          
+                "stopWords": self.inStopWords.text,
+                "tooltips": self.cbToolTips.isSelected()          
             }
             self._callbacks.saveExtensionSetting("config", pickle.dumps(config))
         except Exception as e:
@@ -1887,14 +2067,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.cbParamXmlAttr.setSelected(config["paramXmlAttr"])
                 except:
                     self.cbParamXmlAttr.setSelected(False)
+                self.cbShowSusParams.setSelected(False)
+                self.cbShowQueryString.setSelected(False)
                 try:
                     self.inQueryStringVal.text = config["queryStringVal"]
                 except:
                     self.inQueryStringVal.text = DEFAULT_QSV
                 try:
-                    self.cbIncludeCommonParams.setSelected(config["includeCommonParams"])
+                    self.cbReportSusParams.setSelected(config["reportSusParams"])
                 except:
-                    self.cbIncludeCommonParams.setSelected(True)
+                    self.cbReportSusParams.setSelected(True)
                 try:
                     self.cbIncludePathWords.setSelected(config["includePathWords"])
                 except:
@@ -1915,10 +2097,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.cbParamJSVars.setSelected(config["paramJSVars"])
                 except:
                     self.cbParamJSVars.setSelected(False)
-                try:
-                    self.cbParamMetaName.setSelected(config["paramMetaName"])
-                except:
-                    self.cbParamMetaName.setSelected(False)
                 try:
                     self.inSaveDir.text = config["saveDir"]
                     # Check the directory is valid, otherwise an error will be raised and it will be reset to default
@@ -1957,6 +2135,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.cbSiteMapEndpoints.setSelected(config["sitemapEndpoints"])
                 except:
                     self.cbSiteMapEndpoints.setSelected(False)
+                try:
+                    self.cbRelativeLinks.setSelected(config["relativeLinks"])
+                except:
+                    self.cbRelativeLinks.setSelected(True)
                 try:
                     self.cbParamsEnabled.setSelected(config["paramsEnabled"])
                 except:
@@ -2010,6 +2192,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 except:
                     self.cbWordImgAlt.setSelected(True)
                 try:
+                    self.cbWordImgAlt.setSelected(config["wordLower"])
+                except:
+                    self.cbWordImgAlt.setSelected(True)
+                try:
                     self.inWordsMaxlen.text = (config["wordMaxLen"])
                 except:
                     self.inWordsMaxlen.text = DEFAULT_MAX_WORD_LEN
@@ -2017,6 +2203,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.inStopWords.text = (config["stopWords"])
                 except:
                     self.inStopWords.text = DEFAULT_STOP_WORDS
+                try:
+                    self.cbToolTips.setSelected(config["tooltips"])
+                except:
+                    self.cbToolTips.setSelected(True)
                 # Check the words max length in case we need to change it first
                 self.checkMaxWordsLen()
                 # Check the link prefix is a valid url
@@ -2071,12 +2261,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbParamCookie.setSelected(False)
         self.cbParamXml.setSelected(False)
         self.cbParamXmlAttr.setSelected(False)
+        self.cbShowSusParams.setSelected(False)
         self.cbShowQueryString.setSelected(False)
         self.inQueryStringVal.text = DEFAULT_QSV
-        self.cbIncludeCommonParams.setSelected(True)
+        self.cbReportSusParams.setSelected(True)
         self.cbIncludePathWords.setSelected(False)
         self.cbParamJSVars.setSelected(False)
-        self.cbParamMetaName.setSelected(False)
         self.inSaveDir.text = self.getDefaultSaveDirectory()
         self.cbParamFromLinks.setSelected(False)
         self.inExclusions.text = DEFAULT_EXCLUSIONS
@@ -2085,6 +2275,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbShowWordOrigin.setSelected(False)
         self.cbInScopeOnly.setSelected(False)
         self.cbSiteMapEndpoints.setSelected(False)
+        self.cbRelativeLinks.setSelected(True)
         self.cbParamsEnabled.setSelected(True)
         self.cbLinksEnabled.setSelected(True)
         self.cbLinkPrefix.setSelected(False)
@@ -2097,6 +2288,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbWordParams.setSelected(False)
         self.cbWordComments.setSelected(True)
         self.cbWordImgAlt.setSelected(True)
+        self.cbWordLower.setSelected(True)
         self.cbWordDigits.setSelected(True)
         self.inWordsMaxlen.text = DEFAULT_MAX_WORD_LEN
         self.inStopWords.text = DEFAULT_STOP_WORDS
@@ -2134,30 +2326,39 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             while self.flagCANCEL:
                 waiting = waiting + 1
                 time.sleep(0.2)
-                # If 3 seconds has passed then just break and start the new run
-                if waiting == 15:
+                # If 10 seconds has passed then just break and start the new run
+                if waiting == 50:
                     break
 
             # Initialize
             self.roots.clear()
-            self.param_list = set()
-            self.paramUrl_list = set()
+            self.param_list.clear()
+            self.paramUrl_list.clear()
+            self.paramSus_list.clear()
+            self.paramSusUrl_list.clear()
+            self.susParamText.clear()
+            self.susParamIssue.clear()
             self.txtParamsOnly = ""
             self.txtParamsWithURL = ""
+            self.txtParamsSusOnly = ""
+            self.txtParamsSusWithURL = ""
             self.txtParamsQuery = ""
-            self.link_list = set()
-            self.linkInScope_list = set()
-            self.linkUrl_list = set()
-            self.linkUrlInScope_list = set()
-            self.word_list = set()
-            self.wordUrl_list = set()
+            self.txtParamQuery = ""
+            self.txtParamQuerySus = ""
+            self.link_list.clear()
+            self.linkInScope_list.clear()
+            self.linkUrl_list.clear()
+            self.linkUrlInScope_list.clear()
+            self.word_list.clear()
+            self.wordUrl_list.clear()
             self.txtLinksOnly = ""
             self.txtLinksWithURL = ""
             self.txtLinksOnlyInScopeOnly = ""
             self.txtLinksWithURLInScopeOnly = ""
             self.inLinkFilter.text = ""
             self.btnFilter.text = "Apply filter"
-
+            self.allScopePrefixes.clear()
+            
             # Disable all fields so user can't make changes during a run
             self.setEnabledAll(False)
 
@@ -2194,57 +2395,54 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.outWordList.text = ""
 
             # Run everything in a thread so it doesn't freeze Burp while it gets everything
-            t = threading.Thread(target=self.doEverything, args=[])
+            if _debug:
+                t = threading.Thread(target=self.doEverythingProfile, args=[])
+            else:
+                t = threading.Thread(target=self.doEverything, args=[])
             t.daemon = True
             t.start()
             if _debug:
                 print("menuGAP_clicked thread started")
 
             # Clean up
-            self.roots = set()
+            self.roots.clear()
             
         except Exception as e:
             self._stderr.println("menuGAP_clicked 1")
             self._stderr.println(e)
 
-    def getSiteMapLinks(self, http_message):
+    def getSiteMapLinks(self):
         """
         Add site map links if required
         """
         try:
+            self.txtDebugDetail.text = "getSiteMapLinks"
             if _debug:
                 print("getSiteMapLinks started")
 
-            http_response = http_message.getResponse()
-            if http_response:
-                response = self._helpers.analyzeResponse(http_response)
-                body_offset = response.getBodyOffset()
-                response_string = self._helpers.bytesToString(http_response)
-                header = response_string[:body_offset]
+            url = self.currentReqResp.getRequestUrl()
+            urlNoQS = url
+            if urlNoQS.find("?") >= 0:
+                urlNoQS = urlNoQS[0 : urlNoQS.find("?")]
+            if len(url) > 0:
 
-                url = http_message.getUrl().toString()
-                urlNoQS = url
-                if urlNoQS.find("?") >= 0:
-                    urlNoQS = urlNoQS[0 : urlNoQS.find("?")]
-                if len(url) > 0:
-
-                    # Check link against list of exclusions
-                    if self.includeLink(url):
-
+                # Check link against list of exclusions
+                 if self.includeLink(url):
+                        
+                    if self.currentReqResp.isResponse():
+                        
                         # If it is content-type we want to process then carry on
-                        if self.includeContentType(header, url):
+                        if self.currentContentTypeInclude:
 
                             # Only process links that are in scope
                             if self.isLinkInScope(url):
-
-                                # Add the link to the list
-                                if _debug:
-                                    print(
-                                        "getSiteMapLinks link added: "
-                                        + url.encode("UTF-8")
-                                    )
-                                    
                                 self.addLink(url,urlNoQS)
+                    else:
+                        # It could be a request in the site map that hasn't been requested yet
+                        # Only process links that are in scope
+                        if self.isLinkInScope(url):
+                            self.addLink(url,urlNoQS)
+
         except Exception as e:
             self._stderr.println("getSiteMapLinks 1")
             self._stderr.println(e)
@@ -2321,13 +2519,94 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         except Exception as e:
             self._stderr.println("setTabTitle 1")
             self._stderr.println(e)
-        
+    
+    def removeStdPort(self, url):
+        """
+        If a Url is http, then remove port :80 as this isn't needed
+        If a Url is https, then remove port :443 as this isn't needed
+        """
+        self.txtDebugDetail.text = "removeStdPort: "+url
+        try:
+            if url.find(":443") > 0:
+                if url.startswith("https:") and self.REGEX_PORT443.search(url) is not None:
+                    url = self.REGEX_PORTSUB443.sub("", url, 1)
+            elif url.find(":80") > 0:
+                if url.startswith("http:") and self.REGEX_PORT80.search(url) is not None:
+                    url = self.REGEX_PORTSUB80.sub("", url, 1)
+        except Exception as e:
+            self._stderr.println("removeStdPort 1")
+            self._stderr.println(e)
+        return url
+    
+    def processMessage(self):
+
+        try:
+            if _debug or self.txtDebug.isVisible():
+                url = self.currentReqResp.getRequestUrl().encode("UTF-8")
+                self.txtDebug.text = "Processing: "+url
+                if _debug:
+                    print("Current request: "+ url)
+                
+            # Check if contentType is included to use at various stages later
+            if self.currentReqResp.getResponseContentType() != "":
+                self.currentContentTypeInclude = self.includeContentType()
+            else:
+                self.currentContentTypeInclude = False
+            
+            # If Parameters are enabled
+            if self.cbParamsEnabled.isSelected():
+
+                # If there is a request, get parameters that Burp has identified
+                if self.currentReqResp.isRequest():
+                    self.getBurpParams()
+                    self.getRequestParams()
+
+                # Get parameters from the response
+                if self.currentReqResp.isResponse():
+                    self.getResponseParams()
+                        
+            # Get path words if requested and URL is in scope
+            # Only get if there is a response. This is because Burp will put links in the sitemap that haven't been requested, but can incorrectly get links with wrong paths that then end up with words that make no sense
+            if ((self.cbParamsEnabled.isSelected() and self.cbIncludePathWords.isSelected()) or (self.cbWordsEnabled.isSelected() and self.cbWordPaths.isSelected())) and self.isLinkInScope(self.currentReqResp.getRequestUrl()) and self.currentReqResp.isResponse():
+                self.getPathWords()
+            
+            # If there is a response
+            if self.currentReqResp.isResponse():
+                
+                # If Links are enabled, get all the links for the current endpoint
+                if self.cbLinksEnabled.isSelected():
+                    self.getResponseLinks()
+                    
+                # If the words mode is enabled then search response for words
+                if self.cbWordsEnabled.isSelected():
+                    self.getResponseWords()
+                    
+        except Exception as e:
+            self._stderr.println("processMessage 1")
+            self._stderr.println(e)
+            
+    def doEverythingProfile(self):
+        """
+        Used for debugging purposes
+        """
+        try:
+            pr = profile.Profile()
+            pr.runctx("self.doEverything()",globals(),locals())
+
+            stats = pstats.Stats(pr)
+            stats.print_stats()
+
+        except Exception as e:
+            self._stderr.println("doEverythingProfile")
+            self._stderr.println(e)
+    
+           
     def doEverything(self):
         """
         The methods run in a separate thread when the GAP menu item has been clicked.
         Obtains the selected messages from the interface. Filters the sitemap for all messages containing
         URLs within the selected messages' hierarchy. If so, the message is analyzed to create a parameter list.
-        """
+        """    
         if _debug:
             print("doEverything started")
         
@@ -2341,122 +2620,127 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         else:
             # Set the tab to the default color
             self.setTabDefaultColor()
-
-        # If the user selected the "Include the list of common params in list" option, loads
-        # the params in the COMMON_PARAMS value to appear in the final list
-        if self.cbIncludeCommonParams.isSelected() == True:
-            commonParams = ['{0}'.format(param) for param in COMMON_PARAMS]
-            self.param_list = set(commonParams)   
-            commonParamsOrigin = ['{0} [GAP]'.format(param) for param in COMMON_PARAMS]
-            self.paramUrl_list = set(commonParamsOrigin)             
-        else:
-            self.param_list = set()
-            self.paramUrl_list = set()
-
+        
+        # Change the Progress bar
+        self.progBar.setValue(0)
+        self.progBar.setMaximum(0)
+        self.progBar.setString("Starting...")
+        self.progBar.setVisible(True)
+        
+        # Ensure the full list of parameters are shown first
+        self.cbShowSusParams.setSelected(False)
+        
         # Get all first-level selected messages and store the URLs as roots to filter the sitemap
         try:
-            http_messages = self.context.getSelectedMessages()
-            for http_message in http_messages:
-                if http_message.getUrl() is not None:
-                    # Need to strip the port from the URL before searching because it _callbacks.getSiteMap fails with older versions of Burp if you don't
-                    target = re.sub(r":80[^0-9]|:443[^0-9]", "", http_message.getUrl().toString())
-                    self.roots.add(target)
-                self.checkIfCancel()
+            self.txtDebug.text = "Getting selected messages..."
+            allMessages = self.context.getSelectedMessages()
+            
+            # If the Site Map Tree was the context for GAP, then get the Site Map instead of the selected messages
+            # because in that case it only takes the root
+            if self.context.getInvocationContext() == 4:
+                
+                for http_message in allMessages:
+                    if http_message.getUrl() is not None:
+                        # Need to strip the port from the URL before searching because it _callbacks.getSiteMap fails with older versions of Burp if you don't
+                        target = self.REGEX_PORTSUB.sub("", http_message.getUrl().toString())
+                        self.roots.add(target)
+                    self.checkIfCancel()
 
-            # Get all sitemap entries associated with the selected messages and scrape them for parameters, links and words
-            currentRoot = 0
-            totalRoots = len(self.roots)
-            for root in self.roots:
-                self.checkIfCancel()
+                # If specified to prefix using targets, then get all roots for prefixing
+                if self.cbLinkPrefixScope.isSelected():
+                    for root in self.roots:
+                        prefix = urlparse(root).scheme + "://" + urlparse(root).netloc
+                        self.allScopePrefixes.add(prefix)
+                                
+                # Get all sitemap entries associated with the selected messages and scrape them for parameters, links and words
+                currentRoot = 0
+                totalRoots = len(self.roots)
+                for root in self.roots:
+                    self.checkIfCancel()
+                    
+                    # Change the Progress Stage 
+                    currentRoot = currentRoot + 1
+                    if totalRoots > 1:
+                        self.progStage.text = str(currentRoot) + " / " + str(totalRoots)
+                        self.progStage.setVisible(True)
+                    else:
+                        self.progStage.setVisible(False)
+                    self.progBar.setValue(0)
+                    self.progBar.setString("Getting reqs...")
+                    
+                    # Get all the messages for the current root
+                    self.txtDebug.text = "Getting messages for root: "+root
+                    self.txtDebugDetail.text = ""
+                    allMessages = self._callbacks.getSiteMap(root)
+                                    
+                    # Change the Progress bar
+                    noOfMsgs = len(allMessages)
+                    self.progBar.setMaximum(noOfMsgs)
+                    if self.cbToolTips.isSelected():
+                        self.progStage.setToolTipText("What Site Map target is being processed out of the total number of targets selected.\nCurrent target: " + root)         
+                    self.progBar.setString("0/" + str(noOfMsgs))
+                    
+                    index = 0
+                    for http_message in allMessages:
+                        index = index + 1
+                        self.progBar.setValue(index)
+                        self.progBar.setString(str(index) + "/" + str(noOfMsgs))
+                        self.checkIfCancel()
+
+                        # Only process if the request is in scope
+                        if self._callbacks.isInScope(http_message.getUrl()):
+                            
+                            # Get the current request/response details
+                            self.currentReqResp = ReqResp(http_message, self._helpers, self._stderr)
+                            
+                            if self.currentReqResp.isRequest():
+
+                                # Get the links from the site map if the option is selected
+                                if self.cbLinksEnabled.isSelected() and self.cbSiteMapEndpoints.isSelected():
+                                    self.getSiteMapLinks()
+
+                                # will scrape the same URL multiple times if the site map has stored multiple instances
+                                # the site map stores multiple instances if it detects differences, so this is desirable
+                                rooturl = urlparse(root)
+                                responseurl = urlparse(self.currentReqResp.getRequestUrl())
+                                if rooturl.hostname == responseurl.hostname:
+
+                                    # Process the message if in scope
+                                    self.processMessage()
+                                    
+                            self.currentReqResp = None
+                            
+            else:
                 
                 # Change the Progress bar
-                noOfMsgs = len(self._callbacks.getSiteMap(root))
+                noOfMsgs = len(allMessages)
                 self.progBar.setValue(0)
                 self.progBar.setMaximum(noOfMsgs)
-                self.progBar.setVisible(True)
-                
-                # Change the Progress Stage 
-                currentRoot = currentRoot + 1
-                if totalRoots > 1:
-                    self.progStage.text = str(currentRoot) + " / " + str(totalRoots)
-                    self.progStage.setVisible(True)
-                else:
-                    self.progStage.setVisible(False)
+                self.progStage.setVisible(False)
                 self.progBar.setString("0/" + str(noOfMsgs))
-                
+  
                 index = 0
-                for http_message in self._callbacks.getSiteMap(root):
+                for http_message in allMessages:
                     index = index + 1
                     self.progBar.setValue(index)
                     self.progBar.setString(str(index) + "/" + str(noOfMsgs))
                     self.checkIfCancel()
                     
-                    if http_message.getUrl() is not None:
-                        url = http_message.getUrl().toString()
+                    # Get the current request/response details
+                    self.currentReqResp = ReqResp(http_message, self._helpers, self._stderr)
+                    self.roots.add(self.currentReqResp.getRequestUrl())
+                    
+                    if self.currentReqResp.isRequest():
                         
                         # Get the links from the site map if the option is selected
                         if self.cbLinksEnabled.isSelected() and self.cbSiteMapEndpoints.isSelected():
-                            self.getSiteMapLinks(http_message)
-
-                        # will scrape the same URL multiple times if the site map has stored multiple instances
-                        # the site map stores multiple instances if it detects differences, so this is desirable
-                        rooturl = urlparse(root)
-                        responseurl = urlparse(url)
-
-                        if rooturl.hostname == responseurl.hostname:
+                            self.getSiteMapLinks()
                             
-                            http_request = http_message.getRequest()
-                            http_response = http_message.getResponse()
-                            
-                            # If Parameters are enabled
-                            if self.cbParamsEnabled.isSelected():
-
-                                # only scrape if there is a request to scrape
-                                if http_request:
-                                    self.getParams(url, http_request)
-
-                                # Get parameters from the response
-                                if http_response:
-                                    self.getResponseParams(url, http_response)
-                                        
-                            # Get path words if requested and URL is in scope
-                            if ((self.cbParamsEnabled.isSelected() and self.cbIncludePathWords.isSelected()) or (self.cbWordsEnabled.isSelected() and self.cbWordPaths.isSelected())) and self.isLinkInScope(url):
-                                    self.getPathWords(url, responseurl.path)
-                                    
-                            # If Links are enabled
-                            if self.cbLinksEnabled.isSelected():
-
-                                # Get links
-                                if http_response:
-                                    # Get the response url
-                                    try:
-                                        responseUrl = (
-                                            http_message.getUrl().toString().encode("UTF-8")
-                                        )
-                                    except Exception as e:
-                                        responseUrl = "ERROR OCCURRED"
-                                        self._stderr.println(e)
-
-                                    # Get all the links for the current endpoint
-                                    self.getResponseLinks(http_response, responseUrl)
-                                    
-                            # If the words mode is enabled then search response for words
-                            try:
-                                if self.cbWordsEnabled.isSelected():
-                                    # Get the response url
-                                    try:
-                                        responseUrl = (
-                                            http_message.getUrl().toString().encode("UTF-8")
-                                        )
-                                    except Exception as e:
-                                        responseUrl = "ERROR OCCURRED"
-                                        self._stderr.println(e)
-                                    if http_response:
-                                        self.getResponseWords(http_response, responseUrl)
-                            except Exception as e:
-                                self._stderr.println("doEverything 2")
-                                self._stderr.println(e)
-            
+                        # Process the message
+                        self.processMessage()
+                    
+                    self.currentReqResp = None
+                        
             # Change the Progress bar
             self.progBar.setValue(0)
             maxValue = 0
@@ -2480,10 +2764,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.btnCancel.setEnabled(False)
             self.btnCancel.setText("   COMPLETED    ")
             self.progBar.setString("100%")
+            self.progBar.setValue(1)
+            self.progBar.setMaximum(1)
             self.progStage.text = ""
             if self.getTabIndex() == self.parentTabbedPane.getSelectedIndex():
                 time.sleep(0.08)
                 self.setTabDefaultColor()
+            self.txtDebug.text = ""
+            self.txtDebugDetail.text = ""
 
         except CancelGAPRequested as e:
             # The user pressed the CANCEL GAP button
@@ -2532,16 +2820,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.flagCANCEL = True
         self.btnCancel.setText(" CANCELLING...  ")
         
-    def getParams(self, url, http_request):
+    def getBurpParams(self):
         """
-        Get all the parameters and add them to the paramUrl_list set.
+        Get all the parameters that Burp identifies as parmeters and add them to the paramUrl_list set.
         """
         try:
+            self.txtDebugDetail.text = "getBurpParams"
             if _debug:
-                print("getParams started")
-            request = self._helpers.analyzeRequest(http_request)
-            parameters = request.getParameters()[0:]
-            for param in parameters:
+                print("getBurpParams started")
+            
+            for param in self.currentReqResp.getRequestParams():
                 # If the parameter is of the type we want to log then get them
                 if (
                     (param.getType() == PARAM_URL and self.cbParamUrl.isSelected())
@@ -2561,9 +2849,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         and self.cbParamXmlAttr.isSelected()
                     )
                 ):
-                    self.addParameter(param.getName().strip(), url)
+                    self.addParameter(param.getName().strip(), "Certain", "BURP")
         except Exception as e:
-            self._stderr.println("getParams 1")
+            self._stderr.println("getBurpParams 1")
             self._stderr.println(e)
 
     def getDefaultSaveDirectory(self):
@@ -2658,6 +2946,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         # Check if the link may need to be excluded if it is not in scope
         # See if it has already been found first
+        self.txtDebugDetail.text = "isLinkInScope: "+link
         try:
             # If the link contains the origin endpoint, then strip that
             if link.find("[") >= 0:
@@ -2665,10 +2954,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 
             # If the link contains anything in brackets, then strip the brackets and there contents out of the URL
             if link.find("(") >= 0:
-                link = re.sub(r"\(.*\)", "", link)
+                link = self.REGEX_LINKBRACKET.sub("", link)
                 link = link[0 : link.find("(")]
             if link.find("{") >= 0:
-                link = re.sub(r"\{.*\}", "", link)
+                link = self.REGEX_LINKBRACES.sub("", link)
                 link = link[0 : link.find("{")]
 
             # Get from the dictionary
@@ -2754,6 +3043,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         Displays the parameter, links and words information retrieved
         """
+        self.txtDebugDetail.text = "displayResults"
         if _debug:
             print("displayResults started")
 
@@ -2802,6 +3092,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         This is called as a separate thread from displayResults to display the found parameters
         """
+        self.txtDebugDetail.text = "displayParams"
         if _debug:
             print("displayParams started")
         try:
@@ -2810,54 +3101,82 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 self.lblParamList.text = "Potential params found - UPDATING"
                 self.outParamList.text = "UPDATING..."
+                self.countParam = len(self.param_list)
+                self.countParamSus = len(self.paramSus_list)
+                self.countParamSusUnique = len(self.paramSusUrl_list)
                 self.countParamUnique = len(self.paramUrl_list)
+                self.txtDebug.text = "Displaying Potential params found..."
                 
                 # De-dupe the lists
                 self.txtParamsOnly = "\n".join(sorted(self.param_list))
                 self.txtParamsWithURL = "\n".join(sorted(self.paramUrl_list))
+                self.txtParamsSusOnly = "\n".join(sorted(self.paramSus_list))
+                self.txtParamsSusWithURL = "\n".join(sorted(self.paramSusUrl_list))
                 
                 if self.txtParamsOnly == "":
                     self.outParamList.text = "NO PARAMETERS FOUND"
+                    self.outParamSus.text = "NO PARAMETERS FOUND"
                     self.outParamQuery.text = "NO PARAMETERS FOUND"
                 else:
                     if self.cbShowParamOrigin.isSelected():
-                        self.outParamList.text = self.txtParamsWithURL
+                        if self.cbShowSusParams.isSelected():
+                            self.outParamList.text = self.txtParamsSusWithURL
+                        else:
+                            self.outParamList.text = self.txtParamsWithURL
                     else:
-                        self.outParamList.text = self.txtParamsOnly
-
-                    #self.outParamQuery.text = self.txtParamsQuery#.rstrip('&')
+                        if self.cbShowSusParams.isSelected():
+                            self.outParamList.text = self.txtParamsSusOnly
+                        else:
+                            self.outParamList.text = self.txtParamsOnly
 
                 # Show the version that is selected
+                self.cbShowSusParams.setSelected(False)
                 self.cbShowQueryString.setSelected(False)
                 self.scroll_outParamList.setViewportView(self.outParamList)
 
-                #if str(self.countParamUnique) == str(self.outParamList.getLineCount()-1):
                 if self.cbShowParamOrigin.isSelected():
-                    self.lblParamList.text = (
-                        "Potential params found - "
-                        + str(self.countParamUnique)
-                        + " unique:"
-                    )
+                    if self.cbShowSusParams.isSelected():
+                        self.lblParamList.text = (
+                            "Potential params found - "
+                            + str(self.countParamUnique)
+                            + " unique:"
+                        )
+                    else:
+                        self.lblParamList.text = (
+                            "Potential params found - "
+                            + str(self.countParamSusUnique)
+                            + " unique:"
+                        )
                 else:
-                    self.lblParamList.text = (
-                        "Potential params found - "
-                        + str(self.outParamList.getLineCount())
-                        + " filtered:"
-                    )
+                    if self.cbShowSusParams.isSelected():
+                        self.lblParamList.text = (
+                            "Potential params found - "
+                            + str(self.countParamSus)
+                            + " filtered:"
+                        )
+                    else:
+                        self.lblParamList.text = (
+                            "Potential params found - "
+                            + str(self.countParam)
+                            + " filtered:"
+                        )
             
             self.cbShowParamOrigin.setVisible(True)
             if self.countParamUnique > 0:
                 self.cbShowParamOrigin.setEnabled(True)
+                self.cbShowSusParams.setEnabled(True)
                 self.cbShowQueryString.setEnabled(True)
                 self.inQueryStringVal.setEnabled(True)
             
             # Write the parameters to a file if required
             self.checkIfCancel()
             if self.cbSaveFile.isSelected():
+                self.progBar.setString("Writing files...")
                 self.fileWriteParams()
 
             # Clean up
-            self.paramUrl_list = set()
+            self.paramUrl_list.clear()
+            self.paramSusUrl_list.clear()
             
         except CancelGAPRequested as e:
             if _debug:
@@ -2874,6 +3193,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         This is called as a separate thread from displayResults to display the found links
         """
+        self.txtDebugDetail.text = "displayLinks"
         if _debug:
             print("displayLinks started")
         try:
@@ -2883,7 +3203,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.lblLinkList.text = "Potential links found - UPDATING"
                 self.outLinkList.text = "UPDATING..."
                 self.countLinkUnique = len(self.linkUrl_list)
-
+                self.txtDebug.text = "Displaying Potential links found..."
+                
                 # De-dupe the lists
                 self.txtLinksOnly = "\n".join(sorted(self.link_list))
                 self.txtLinksWithURL = "\n".join(sorted(self.linkUrl_list))
@@ -2936,13 +3257,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # Write the links to a file if required
             self.checkIfCancel()
             if self.cbSaveFile.isSelected():
+                self.progBar.setString("Writing files...")
                 self.fileWriteLinks()
 
             # Clean up
-            self.link_list = set()
-            self.linkUrl_list = set()
-            self.linkInScope_list = set()
-            self.linkUrlInScope_list = set()
+            self.link_list.clear()
+            self.linkUrl_list.clear()
+            self.linkInScope_list.clear()
+            self.linkUrlInScope_list.clear()
             
         except CancelGAPRequested as e:
             if _debug:
@@ -2959,6 +3281,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         This is called as a separate thread from displayResults to display the found words
         """
+        self.txtDebugDetail.text = "displayWords"
         if _debug:
             print("displayWords started")
         if WORDLIST_IMPORT_ERROR != "":
@@ -2973,7 +3296,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.lblWordList.text = "Words found - UPDATING"
                     self.outWordList.text = "UPDATING..."
                     self.countWordUnique = len(self.wordUrl_list)
-    
+                    self.txtDebug.text = "Displaying Words found..."
+                    
                     # De-dupe the lists
                     self.txtWordsOnly = "\n".join(sorted(self.word_list))
                     self.txtWordsWithURL = "\n".join(sorted(self.wordUrl_list))
@@ -3008,11 +3332,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # Write the words to a file if required
                 self.checkIfCancel()
                 if self.cbSaveFile.isSelected():
+                    self.progBar.setString("Writing files...")
                     self.fileWriteWords()
 
                 # Clean up
-                self.word_list = set()
-                self.wordUrl_list = set()
+                self.word_list.clear()
+                self.wordUrl_list.clear()
                 
             except CancelGAPRequested as e:
                 if _debug:
@@ -3029,6 +3354,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         Writes the parameters to a file in the requested directory
         """
+        self.txtDebugDetail.text = "fileWriteParams"
         if _debug:
             print("fileWriteParams started")
         try:
@@ -3041,7 +3367,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     
                     # Write all parameters as one file to the root directory, with the project name, unless there is only one root selected
                     if len(self.roots) > 1:
-                        with open(os.path.expanduser(self.getMainFilePath() + "_params.txt"), "w") as f:
+                        fileName = os.path.expanduser(self.getMainFilePath() + "_params.txt")
+                        self.txtDebug.text = "Writing file " + fileName
+                        with open(fileName, "w") as f:
                             self.checkIfCancel()
                             try:
                                 if showParamOrigin:
@@ -3057,7 +3385,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     # Write a file for each root, to the roots directory
                     if len(self.roots) == 1:
                         for root in self.roots:
-                            with open(os.path.expanduser(self.getFilePath(root) + "_params.txt"), "w") as f:
+                            fileName = os.path.expanduser(self.getFilePath(root) + "_params.txt")
+                            self.txtDebug.text = "Writing file " + fileName
+                            with open(fileName, "w") as f:
                                 self.checkIfCancel()
                                 try:
                                     if showParamOrigin:
@@ -3090,10 +3420,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             # Write params to file if there were any
                             if fileText != "":
                                 fileText = "\n".join(sorted(set(fileText.split())))
-                                with open(os.path.expanduser(self.getFilePath(root) + "_params.txt"), "w") as f:
-                                    f.write(fileText)
-                                    f.write("\n".encode("UTF-8"))
-                                    f.close
+                                fileName = os.path.expanduser(self.getFilePath(root) + "_params.txt")
+                                self.txtDebug.text = "Writing file " + fileName
+                                with open(fileName, "w") as f:
+                                    try:
+                                        f.write(fileText)
+                                        f.write("\n".encode("UTF-8"))
+                                        f.close
+                                    except Exception as e:
+                                        self._stderr.println("fileWriteParams 5")
+                                        self._stderr.println(e)
                                 
         except IOError as e:
             self._stderr.println("There is a problem with the Save directory " + self.inSaveDir.text + ". Check it and correct it.")
@@ -3109,6 +3445,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         Writes the links to a file in the requested directory
         """
+        self.txtDebugDetail.text = "fileWriteLinks"
         if _debug:
             print("fileWriteLinks started")
         try:
@@ -3122,7 +3459,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     
                     # Write all links as one file to the root directory, with the project name, unless there is only one root selected
                     if len(self.roots) > 1:
-                        with open(os.path.expanduser(self.getMainFilePath() + "_links.txt"), "w") as f:
+                        fileName = os.path.expanduser(self.getMainFilePath() + "_links.txt")
+                        self.txtDebug.text = "Writing file " + fileName
+                        with open(fileName, "w") as f:
                             self.checkIfCancel()
                             try:
                                 if showLinkOrigin:
@@ -3144,7 +3483,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     # Write a file for each root, to the roots directory
                     if len(self.roots) == 1:
                         for root in self.roots:
-                            with open(os.path.expanduser(self.getFilePath(root) + "_links.txt"), "w") as f:
+                            fileName = os.path.expanduser(self.getFilePath(root) + "_links.txt")
+                            self.txtDebug.text = "Writing file " + fileName
+                            with open(fileName, "w") as f:
                                 self.checkIfCancel()
                                 try:
                                     if showLinkOrigin:
@@ -3192,10 +3533,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             # Write links to file if there were any
                             if fileText != "":
                                 fileText = "\n".join(sorted(set(fileText.split())))
-                                with open(os.path.expanduser(self.getFilePath(root) + "_links.txt"), "w") as f:
-                                    f.write(fileText)
-                                    f.write("\n".encode("UTF-8"))
-                                    f.close
+                                fileName = os.path.expanduser(self.getFilePath(root) + "_links.txt")
+                                self.txtDebug.text = "Writing file " + fileName
+                                with open(fileName, "w") as f:
+                                    try:
+                                        f.write(fileText)
+                                        f.write("\n".encode("UTF-8"))
+                                        f.close
+                                    except Exception as e:
+                                        self._stderr.println("fileWriteLinks 5")
+                                        self._stderr.println(e)
                                     
         except IOError as e:
                 self._stderr.println("There is a problem with the Save directory " + self.inSaveDir.text + ". Check it and correct it.")
@@ -3212,6 +3559,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         Writes the words to a file in the requested directory
         """
+        self.txtDebugDetail.text = "fileWriteWords"
         if _debug:
             print("fileWriteWords started")
         if WORDLIST_IMPORT_ERROR != "":
@@ -3228,7 +3576,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         
                         # Write all words as one file to the root directory, with the project name, unless there is only one root selected
                         if len(self.roots) > 1:
-                            with open(os.path.expanduser(self.getMainFilePath() + "_words.txt"), "w") as f:
+                            fileName = os.path.expanduser(self.getMainFilePath() + "_words.txt")
+                            self.txtDebug.text = "Writing file " + fileName
+                            with open(fileName, "w") as f:
                                 self.checkIfCancel()
                                 try:
                                     if showWordOrigin:
@@ -3244,7 +3594,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         # Write a file for each root, to the roots directory
                         if len(self.roots) == 1:
                             for root in self.roots:
-                                with open(os.path.expanduser(self.getFilePath(root) + "_words.txt"), "w") as f:
+                                fileName = os.path.expanduser(self.getFilePath(root) + "_words.txt")
+                                self.txtDebug.text = "Writing file " + fileName
+                                with open(fileName, "w") as f:
                                     self.checkIfCancel()
                                     try:
                                         if showWordOrigin:
@@ -3277,11 +3629,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 # Write words to file if there were any
                                 if fileText != "":
                                     fileText = "\n".join(sorted(set(fileText.split())))
-                                    with open(os.path.expanduser(self.getFilePath(root) + "_words.txt"), "w") as f:
-                                        f.write(fileText)
-                                        f.write("\n".encode("UTF-8"))
-                                        f.close
-                                    
+                                    fileName = os.path.expanduser(self.getFilePath(root) + "_words.txt")
+                                    self.txtDebug.text = "Writing file " + fileName
+                                    with open(fileName, "w") as f:
+                                        try:
+                                            f.write(fileText)
+                                            f.write("\n".encode("UTF-8"))
+                                            f.close
+                                        except Exception as e:
+                                            self._stderr.println("fileWriteWords 5")
+                                            self._stderr.println(e)
             except IOError as e:
                 self._stderr.println("There is a problem with the Save directory " + self.inSaveDir.text + ". Check it and correct it.")
             except CancelGAPRequested as e:
@@ -3291,38 +3648,86 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             except Exception as e:
                 self._stderr.println("fileWriteWords 1")
                 self._stderr.println(e)
+    
+    def getRequestParams(self):
+        """
+        Get potential parmeters from JSON that may be in the request
+        """
+        self.txtDebugDetail.text = "getRequestParams"
+        if _debug:
+            print("getRequestParams started")
+        try:
+            paramsProcessed = set()
             
-    def getResponseParams(self, responseUrl, http_response):
+            # Get any potential JSON strings that are between { and }
+            possibleJSON = self.REGEX_PARAMSJSON.finditer(self.currentReqResp.getRequestBody())
+            for key in possibleJSON:
+                self.checkIfCancel()
+                if key is not None and key.group() != "":
+                    possibleParams = self.REGEX_PARAMSJSONPARAMS.finditer(key.group())
+                    for param in possibleParams:     
+                        self.checkIfCancel()
+                        # If the param has already been processed, skip to the next
+                        if param in paramsProcessed:
+                            continue
+                        else:
+                            paramsProcessed.add(param)
+                            
+                        if param is not None and param.group() != "":      
+                            if _debug:
+                                print("  getRequestParams param: "+param.group())
+                            self.addParameter(param.group(), "Firm", "REQUEST")
+            
+        except Exception as e:
+            if not self.flagCANCEL:
+                self._stderr.println("getRequestParams 1")
+                self._stderr.println(e)
+                
+    def getResponseParams(self):
         """
         Get XML and JSON responses, extract keys and add them to the paramUrl_list
         Original contributor: @_pichik
         In addition it will extract name and id from <input> fields in HTML
         """
+        self.txtDebugDetail.text = "getResponseParams"
         if _debug:
             print("getResponseParams started")
         try:
-            response = self._helpers.analyzeResponse(http_response)
-            body_offset = response.getBodyOffset()
-            response_string = self._helpers.bytesToString(http_response)
-            body = response_string[body_offset:]
-            header = response_string[:body_offset]
 
             # If it is content-type we want to process then carry on
-            if self.includeContentType(header, responseUrl):
+            if self.currentContentTypeInclude:
 
+                body = self.currentReqResp.getResponseBody()
+                mimeType = self.currentReqResp.getResponseMIMEType()
+                paramsProcessed = set()
+                
                 # Get parameters from the response where they are like &PARAM= or ?PARAM=
                 try:
-                    possibleParams = re.finditer(r"(?<=[^\&])(\?|%3f|\&|%26|\&amp;|\&#38;|\&#61;|\&#34;|\&#63;|\&#39;)[a-z0-9_\-]{3,}=(?=[^=])", body, re.IGNORECASE)
+                    possibleParams = self.REGEX_PARAMSPOSSIBLE.finditer(body)
                     for key in possibleParams:
+                        
+                        self.checkIfCancel()
                         if key is not None and key.group() != "":
-                            param = key.group().strip().replace("=","").replace("?","").replace("%3f","").replace("%3F","").replace("%26","").replace("&amp;","").replace("&#38;","").replace("&#61;","").replace("&#34;","").replace("&#63;","").replace("&#39;","").replace("&","")
-                            self.addParameter(param, responseUrl)
+                            param = key.group().replace("%5c","")
+                            
+                            # If the param has already been processed, skip to the next
+                            if param in paramsProcessed:
+                                continue
+                            else:
+                                paramsProcessed.add(param)
+
+                            if _debug:
+                                print("  getResponseParams param: "+param)
+                            
+                            param = self.REGEX_PARAMSSUB.sub("",param).strip()
+                            param = param.replace("\\","").replace("&","")
+                            self.addParameter(param, "Tentative", "RESPONSE")
                 except Exception as e:
                     self._stderr.println("getResponseParams 9")
                     self._stderr.println(e)
                 
                 # If any of the options were picked, then carry on
-                if (self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected() or self.cbParamJSVars.isSelected() or self.cbParamMetaName.isSelected()):     
+                if (self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected() or self.cbParamJSVars.isSelected()):     
                                     
                     # Get regardless of the content type
                     # Javascript variable could be in the html, script and even JSON response within a .js.map file
@@ -3330,125 +3735,90 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                         # Get inline javascript variables defined with "let"
                         try:
-                            js_keys = re.finditer(
-                                r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))",
-                                body,
-                                re.IGNORECASE,
-                            )
+                            js_keys = self.REGEX_JSLET.finditer(body)
                             for key in js_keys:
+                                self.checkIfCancel()
                                 if key is not None and key.group() != "":
-                                    self.addParameter(key.group().strip(), responseUrl)
+                                    self.addParameter(key.group().strip(), "Tentative", "RESPONSE")
                         except Exception as e:
                             self._stderr.println("getResponseParams 1")
                             self._stderr.println(e)
 
                         # Get inline javascript variables defined with "var"
                         try:
-                            js_keys = re.finditer(
-                                r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))",
-                                body,
-                                re.IGNORECASE,
-                            )
+                            js_keys = self.REGEX_JSVAR.finditer(body)
                             for key in js_keys:
+                                self.checkIfCancel()
                                 if key is not None and key.group() != "":
-                                    self.addParameter(key.group().strip(), responseUrl)
+                                    self.addParameter(key.group().strip(),  "Tentative", "RESPONSE")
                         except Exception as e:
                             self._stderr.println("getResponseParams 2")
                             self._stderr.println(e)
 
                         # Get inline javascript constants
                         try:
-                            js_keys = re.finditer(
-                                r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))",
-                                body,
-                                re.IGNORECASE,
-                            )
+                            js_keys = self.REGEX_JSCONSTS.finditer(body)
                             for key in js_keys:
+                                self.checkIfCancel()
                                 if key is not None and key.group() != "":
-                                    self.addParameter(key.group().strip(), responseUrl)
+                                    self.addParameter(key.group().strip(), "Tentative", "RESPONSE")
                         except Exception as e:
                             self._stderr.println("getResponseParams 3")
                             self._stderr.println(e)
 
                     # If mime type is JSON then get the JSON attributes
-                    if response.getStatedMimeType() == "JSON":
+                    if mimeType == "JSON":
                         if self.cbParamJSONResponse.isSelected():
                             try:
                                 # Get only keys from json (everything between double quotes:)
-                                json_keys = re.findall(
-                                    '"([a-zA-Z0-9$_\.-]*?)":', body, re.IGNORECASE
-                                )
+                                json_keys = self.REGEX_JSONKEYS.findall(body)
                                 for key in json_keys:
-                                    self.addParameter(key.strip(), responseUrl)
+                                    self.checkIfCancel()
+                                    self.addParameter(key.strip(), "Tentative", "RESPONSE")
                             except Exception as e:
                                 self._stderr.println("getResponseParams 4")
                                 self._stderr.println(e)
 
                     # If the mime type is XML then get the xml keys
-                    elif response.getStatedMimeType() == "XML":
+                    elif mimeType == "XML":
                         if self.cbParamXMLResponse.isSelected():
                             try:
                                 # Get XML attributes
-                                xml_keys = re.findall("<([a-zA-Z0-9$_\.-]*?)>", body)
+                                xml_keys = self.REGEX_XMLATTR.findall(body)
                                 for key in xml_keys:
-                                    self.addParameter(key.strip(), responseUrl)
+                                    self.checkIfCancel()
+                                    self.addParameter(key.strip(), "Tentative", "RESPONSE")
                             except Exception as e:
                                 self._stderr.println("getResponseParams 5")
                                 self._stderr.println(e)
 
                     # If the mime type is HTML then get <input> name and id values, and meta tag names
-                    elif response.getStatedMimeType() == "HTML":
+                    elif mimeType == "HTML":
 
                         if self.cbParamInputField.isSelected():
                             # Get Input field name and id attributes
                             try:
-                                html_keys = re.findall("<input(.*?)>", body)
+                                html_keys = self.REGEX_HTMLINP.findall(body)
                                 for key in html_keys:
-                                    input_name = re.search(
-                                        r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))",
-                                        key,
-                                        re.IGNORECASE,
-                                    )
+                                    self.checkIfCancel()
+                                    input_name = self.REGEX_HTMLINP_NAME.search(key)
                                     if input_name is not None and input_name.group() != "":
                                         input_name_val = input_name.group()
                                         input_name_val = input_name_val.replace("=", "")
                                         input_name_val = input_name_val.replace('"', "")
                                         input_name_val = input_name_val.replace("'", "")
-                                        self.addParameter(input_name_val.strip(), responseUrl)
-                                    input_id = re.search(
-                                        r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))",
-                                        key,
-                                        re.IGNORECASE,
-                                    )
+                                        self.addParameter(input_name_val.strip(), "Tentative", "RESPONSE")
+                                    input_id = self.REGEX_HTMLINP_ID.search(key)
                                     if input_id is not None and input_id.group() != "":
                                         input_id_val = input_id.group()
                                         input_id_val = input_id_val.replace("=", "")
                                         input_id_val = input_id_val.replace('"', "")
                                         input_id_val = input_id_val.replace("'", "")
-                                        self.addParameter(input_id_val.strip(), responseUrl)
+                                        self.addParameter(input_id_val.strip(), "Tentative", "RESPONSE")
                             except Exception as e:
                                 self._stderr.println("getResponseParams 6")
                                 self._stderr.println(e)
 
-                        if self.cbParamMetaName.isSelected():
-                            # Get meta tag name attribute
-                            try:
-                                meta_keys = re.findall("<meta(.*?)>", body)
-                                for key in meta_keys:
-                                    meta_name = re.search(
-                                        r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))",
-                                        key,
-                                        re.IGNORECASE,
-                                    )
-                                    if meta_name is not None and meta_name.group() != "":
-                                        meta_name_val = meta_name.group()
-                                        meta_name_val = meta_name_val.replace("=", "")
-                                        meta_name_val = meta_name_val.replace('"', "")
-                                        meta_name_val = meta_name_val.replace("'", "")
-                                        self.addParameter(meta_name_val.strip(), responseUrl)
-                            except Exception as e:
-                                self._stderr.println("getResponseParams 7")
-                                self._stderr.println(e)
         except Exception as e:
             if not self.flagCANCEL:
                 self._stderr.println("getResponseParams 8")
@@ -3459,6 +3829,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Determine if the passed Link should be excluded by checking the list of exclusions (if selected)
         Returns whether the link should be included
         """
+        self.txtDebugDetail.text = "includeLink: "+link
         include = True
 
         # Exclude if the finding is an endpoint link but has more than one newline character. This is a false
@@ -3471,8 +3842,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # - has any new line characters in
         # - doesn't have any letters or numbers in
         # - doesn't have \s or \S in, because it's probably a regex, not a link
+        # - has character non printable ascii characters in it
+        # - starts with /=
+        # - starts with application/, image/, model/, video/, audio/ or text/ as this is a content-type that can sometimes be confused for links
         try:
-            if link.count("\n") > 1 or link.startswith("#") or link.startswith("$") or link.startswith("\\"):
+            if link.count("\n") > 1 or link.startswith("#") or link.startswith("$") or link.startswith("\\") or link.startswith("/="):
                 include = False
             if include:
                 include = not (bool(re.search(r"\s", link)))
@@ -3482,6 +3856,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 include = bool(re.search(r"[0-9a-zA-Z]", link))
             if include:
                 include = not (bool(re.search(r"\\(s|S)", link)))
+            if include:
+                include = not (bool(re.match(r"^(application\/|image\/|model\/|video\/|audio\/|text\/)", link, re.IGNORECASE)))
+            for char in link:
+                if ord(char) < 32:
+                    include = False
+                    break
         except Exception as e:
             self._stderr.println("includeLink 2")
             self._stderr.println(e)
@@ -3517,6 +3897,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Determine if the passed should be excluded by checking the list of exclusions
         Returns whether the url should be included
         """
+        self.txtDebugDetail.text = "includeFile: "+url
         try:
             include = True
             
@@ -3538,71 +3919,85 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         return include
 
-    def includeContentType(self, header, url):
+    def includeContentType(self):
         """
         Determine if the content type is in the exclusions
         Returns whether the content type is included
         """
+        self.txtDebugDetail.text = "includeContentType"
         if _debug:
             print("includeContentType started")
-        # Get the content-type from the response
-        try:
-            contentType = self.REGEX_CONTENTTYPE.findall(header)[0]
-            # If content-type is in format like "text/plain; charset=utf-8", then just select the first part
-            contentType = contentType.split(";")[0]
-        except Exception as e:
-            contentType = ""
+        include = True
 
+        contentType = self.currentReqResp.getResponseContentType()
+        url = self.currentReqResp.getRequestUrl()
+        
         # If the content type wasn't found, check against file extensions
         if contentType == "":
             url = url.split("?")[0].split("#")[0].split("/")[-1]
             if url.find(".") > 0:
                 include = self.includeFile(url)
-            
-        # Check the content-type against the comma separated list of exclusions
-        lstExcludeContentType = CONTENTTYPE_EXCLUSIONS.split(",")
-        include = True
-        for excludeContentType in lstExcludeContentType:
-            if contentType.lower() == excludeContentType.lower():
-                include = False
+        else:    
+            # Check the content-type against the comma separated list of exclusions
+            lstExcludeContentType = CONTENTTYPE_EXCLUSIONS.split(",")
+            for excludeContentType in lstExcludeContentType:
+                self.checkIfCancel()
+                if contentType.lower() == excludeContentType.lower():
+                    include = False
+                    break
 
+        if _debug and include:
+            print("Content-Type included: "+contentType)
+            
         return include
 
-    def getResponseLinks(self, http_response, responseUrl):
+    def getResponseLinks(self):
         """
         Get a list of links found
         """
+        self.txtDebugDetail.text = "getResponseLinks"
         if _debug:
             print("getResponseLinks started")
 
-        response = self._helpers.analyzeResponse(http_response)
-        body_offset = response.getBodyOffset()
-        response_string = self._helpers.bytesToString(http_response)
-        body = response_string[body_offset:]
-        header = response_string[:body_offset]
-
-        # Some URLs may be displayed in the body within strings that have different encodings of / and : so replace these
-        body = re.sub(r"(&#x2f;|%2f|\u002f|\/)", "/", body, flags=re.IGNORECASE)
-        body = re.sub(r"(&#x3a;|%3a|\u003a)", ":", body, flags=re.IGNORECASE)
-        body = body.replace("\/","/")
+        linksProcessed = set()
+        header = self.currentReqResp.getResponseHeaders()
+        responseUrl = self.currentReqResp.getRequestUrl()
         
-        # Replace occurrences of HTML entity &quot; with an actual double quote
-        body = body.replace('&quot;','"')
-        
-        try:
-            # If it is content-type we want to process then carry on
-            if self.includeContentType(header, responseUrl):
-
+        # If it is content-type we want to process then carry on
+        if self.currentContentTypeInclude:
+            
+            # Some URLs may be displayed in the body within strings that have different encodings of / and : so replace these
+            body = self.currentReqResp.getResponseBody()
+            body = self.REGEX_LINKSSLASH.sub("/", body)
+            body = self.REGEX_LINKSCOLON.sub(":", body)
+            
+            # Replace occurrences of HTML entity &quot; with an actual double quote
+            body = body.replace('&quot;','"')
+            # Replace occurrences of HTML entity &nbsp; with an actual space
+            body = body.replace('&nbsp;',' ')
+            
+            try:
                 search = header.replace(" ","\n").encode("utf-8")+body.encode("utf-8")
                 try:
                     link_keys = self.REGEX_LINKS.finditer(search)
                 except Exception as e:
                     self._stderr.println("getResponseParams 4")
                     self._stderr.println(e)
-            
+
                 for key in link_keys:
-                    if key is not None and len(key.group()) > 1:
-                        link = key.group()
+                    self.checkIfCancel()
+                    if key is not None and len(key.group().strip()) > 1:
+                        link = key.group().strip()
+
+                        # If the link has been processed already, skip to the next
+                        if link in linksProcessed:
+                            continue
+                        else:
+                            linksProcessed.add(link)
+                        
+                        if _debug:
+                            print("  getResponseLinks link: "+link)
+                        
                         link = link.strip("\"'\n\r( ")
                         link = link.replace("\\n", "")
                         link = link.replace("\\r", "")
@@ -3649,16 +4044,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             link = link.split("`")[0]
                             
                             # If there are any closing brackets of any kind without an opening bracket, remove everything from the closing bracket onwards
-                            if re.search(r"^[^(]*\)*$",link):
+                            if self.REGEX_LINKSEARCH1.search(link):
                                 link = link.split(")", 1)[0]
-                            if re.search(r"^[^{}]*\}*$",link):
+                            if self.REGEX_LINKSEARCH2.search(link):
                                 link = link.split("}", 1)[0]
-                            if re.search(r"^[^\[]]*\]*$",link):
+                            if self.REGEX_LINKSEARCH3.search(link):
                                 link = link.split("]", 1)[0]    
                                 
                             # If there is a </ in the link then strip from that forward
-                            if re.search(r"<\/", link):
-                               link = link.split("</", 1)[0]                           
+                            if self.REGEX_LINKSEARCH4.search(link):
+                                link = link.split("</", 1)[0]                           
                         
                         except Exception as e:
                             self._stderr.println("getResponseLinks 2")
@@ -3706,58 +4101,40 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             if (
                                 self.cbParamFromLinks.isSelected()
                                 and self.cbParamsEnabled.isSelected()
-                                and link.count("?") > 0
+                                and link.find("?") > 0
                                 and self.isLinkInScope(link)
                             ):
                                 # Get parameters from the link
                                 try:
-                                    link = link.replace("&amp;", "&")
-                                    link = link.replace("\\x26", "&")
-                                    link = link.replace("\\u0026", "&")
-                                    link = link.replace(r"\x26", "&")
-                                    link = link.replace(r"\u0026", "&")
-                                    link = link.replace("&#38;","&")
-                                    link = link.replace("&equals;", "=")
-                                    link = link.replace("\\x3d", "=")
-                                    link = link.replace("\\u003d", "=")
-                                    link = link.replace(r"\x3d", "=")
-                                    link = link.replace(r"\u003d", "=")
-                                    link = link.replace("&#61;", "=")
-                                    param_keys = re.finditer(
-                                        r"(?<=\?|&)[^\=\&\n].*?(?=\=|&|\n)", link
-                                    )
+                                    link = link.replace("%5c","").replace("\\","")
+                                    link = self.REGEX_LINKSAND.sub("&", link)
+                                    link = self.REGEX_LINKSEQUAL.sub("=", link)
+                                    param_keys = self.REGEX_PARAMKEYS.finditer(link)
                                     for param in param_keys:
+                                        if _debug:
+                                            print("    getResponseLinks param: "+str(param.group()))
+                                        self.checkIfCancel()
                                         if param is not None and param.group() != "":
-                                            self.addParameter(param.group().strip(), responseUrl)
+                                            self.addParameter(param.group().strip(), "Firm", "RESPLINKS")
                                 except Exception as e:
                                     self._stderr.println("getResponseLinks 3")
                                     self._stderr.println(e)
-        except Exception as e:
-            if not self.flagCANCEL:
-                self._stderr.println("getResponseLinks 1")
-                self._stderr.println(e)
-                try:
-                    self._stderr.println("The link that caused the error: " + link)
-                except:
-                    pass
+            except Exception as e:
+                if not self.flagCANCEL:
+                    self._stderr.println("getResponseLinks 1")
+                    self._stderr.println(e)
+                    try:
+                        self._stderr.println("The link that caused the error: " + link)
+                    except:
+                        pass
             
         # Also add a link of a js.map file if the X-SourceMap or SourceMap header exists
         try:
             # See if the SourceMap header exists
             try:
-                mapFile = re.findall(
-                    r"(?<=SourceMap\:\s).*?(?=\n)", header, re.IGNORECASE
-                )[0]
+                mapFile = self.REGEX_SOURCEMAP.findall(header)[0]
             except:
                 mapFile = ""
-            # If not found, try the deprecated X-SourceMap header
-            if mapFile != "":
-                try:
-                    mapFile = re.findall(
-                        r"(?<=X-SourceMap\:\s).*?(?=\n)", header, re.IGNORECASE
-                    )[0]
-                except:
-                    mapFile = ""
             # If a map file was found in the response, then add a link for it
             if mapFile != "":
                 self.addLink(mapFile,responseUrl)
@@ -3765,38 +4142,24 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self._stderr.println("getResponseLinks 4")
             self._stderr.println(e)
 
-    def getResponseWords(self, http_response, responseUrl):
+    def getResponseWords(self):
         """
         Get a list of words found
         """
+        self.txtDebugDetail.text = "getResponseWords"
         if _debug:
             print("getResponseWords started")
         try:
-            response = self._helpers.analyzeResponse(http_response)
-            body_offset = response.getBodyOffset()
-            response_string = self._helpers.bytesToString(http_response)
-            body = response_string[body_offset:]
-            header = response_string[:body_offset]
+            contentType = self.currentReqResp.getResponseContentType()
+            mimeType = self.currentReqResp.getResponseMIMEType()
+            responseUrl = self.currentReqResp.getRequestUrl()
+            wordsProcessed = set()
             
-            # Get the content-type from the response
-            try:
-                contentType = re.findall(
-                    r"(?<=Content-Type\:\s)[a-zA-Z\-].+\/[a-zA-Z\-].+?(?=\s|\;)",
-                    header,
-                    re.IGNORECASE,
-                )[0]
-                contentType = contentType.split(";")[0]
-            except:
-                contentType = ""
-            
-            # Also get the MIME type so we can compare both
-            try:
-                mimeType = response.getStatedMimeType()
-            except:
-                mimeType = ""
-                
             # If it's a content type we want to retrieve words from then search
-            if mimeType in ("HTML","XML","JSON","PLAIN") or contentType.lower() in DEFAULT_WORDS_CONTENT_TYPES:
+            if (mimeType in ("HTML","XML","JSON","PLAIN") or contentType.lower() in DEFAULT_WORDS_CONTENT_TYPES) and responseUrl.lower().find(".js.map") < 0:
+                
+                body = self.currentReqResp.getResponseBody()
+                
                 # Parse html content with beautifulsoup4
                 # If html5lib is installed then use that as a parser. It is slower than the default, but is more accurate and doesn't throw runtime errors
                 allText = ""
@@ -3812,9 +4175,15 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # Get words from meta tag contents
                 for tag in soup.find_all("meta", content=True):
                     self.checkIfCancel()
-                    if tag.get("property", None) in ["og:title","og:description"] or tag.get("name", None) in ["description","keywords","twitter:title","twitter:description"]:
+                    if tag.get("property", None) in ["og:title","og:description","title","og:site_name","fb:admins"] or tag.get("name", None) in ["description","keywords","twitter:title","twitter:description","application-name","author","subject","copyright","abstract","topic","summary","owner","directory","category","og:title","og:type","og:site_name","og:description","csrf-param","apple-mobile-web-app-title","twitter:label1","twitter:data1","twitter:label2","twitter:data2","twitter:title"]:
                         allText = allText + tag['content'] + ' '
 
+                # Get words from link tag titles
+                for tag in soup.find_all("link", content=True):
+                    self.checkIfCancel()
+                    if tag.get("rel", None) in ["alternate","index","start","prev","next","search"]:
+                        allText = allText + tag['title'] + ' '
+    
                 # Get words from any "alt" attribute of images if required
                 if self.cbWordImgAlt.isSelected():
                     for img in soup.find_all('img', alt=True):
@@ -3835,27 +4204,39 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # Get words from the body text
                 allText = allText + " ".join(soup.stripped_strings)
                 
-                # Build list of potential words over 3 characters long
-                potentialWords = re.findall(r"[\w']{3,}", allText)
+                # Build list of potential words over 3 characters long, that don't appear in url paths
+                potentialWords = self.REGEX_WORDS.findall(allText)
                 potentialWords = set(potentialWords) 
                 
                 # Process all words found
                 for word in potentialWords:
+                    
+                    # If the word has already been processes, skip to the next
+                    if word in wordsProcessed:
+                        continue
+                    else:
+                        wordsProcessed.add(word)
+                    
+                    if _debug:
+                        print("  getResponseWords word: "+word)
+                                
+                    # Ignore certain words if found in robots.txt
+                    if responseUrl.lower().find("robots.txt") > 0 and word in ("allow","disallow","sitemap","user-agent"):
+                        continue
                     word = self.sanitizeWord(word)
                     self.checkIfCancel()
-                    # Check if word is not already been found 
-                    #if word not in self.wordUrl_list:
-                    
+
                     # If "Include word with digits" is checked, only proceed with word if it has no digits
                     if not (self.cbWordDigits and any(char.isdigit() for char in word)):
-                        if re.search('[a-zA-Z]', word):
+
+                        if word.upper().isupper():
                             # strip apostrophes
                             word = word.replace("'", "")
                             # add the word to the list if not a stop word and is not above the max length
                             if len(word) > 0 and word.lower() not in self.lstStopWords and (self.inWordsMaxlen.text == "0" or len(word) <= int(self.inWordsMaxlen.text)):
                                 self.word_list.add(word)
                                 self.wordUrl_list.add(word + "  [" + responseUrl + "]")
-                                if word != word.lower():
+                                if self.cbWordLower.isSelected() and word != word.lower():
                                     self.word_list.add(word.lower())
                                     self.wordUrl_list.add(word.lower() + "  [GAP]")
                                 # If "Create singluar/plural words" option is checked, check if there is a singular/plural word to add
@@ -3864,11 +4245,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     if newWord != "" and len(newWord) > 3 and newWord.lower() not in self.lstStopWords:
                                         self.word_list.add(newWord)
                                         self.wordUrl_list.add(newWord + "  [GAP]")
-                                        if newWord != newWord.lower():
+                                        if self.cbWordLower.isSelected() and newWord != newWord.lower():
                                             self.word_list.add(newWord.lower())
                                             self.wordUrl_list.add(newWord.lower() + "  [GAP]")
                                         # If the original word was uppercase and didn't end in "S" but the new one does, also add the original word with a lower case "s"
-                                        if word.isupper() and word[-1:] != 'S' and newWord == word + 'S':
+                                        if self.cbWordLower.isSelected() and word.isupper() and word[-1:] != 'S' and newWord == word + 'S':
                                             self.word_list.add(word + 's')
                                             self.wordUrl_list.add(word + 's' + "  [GAP]")
         except Exception as e:
@@ -3880,14 +4261,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 except:
                     pass
             
-    def getPathWords(self, url, path):
+    def getPathWords(self):
         """
         Get all words from path and if they do not contain file extension add them to the paramUrl_list
         Original contributor: @_pichik
         """
+        self.txtDebugDetail.text = "getPathWords"
         if _debug:
             print("getPathWords started")
         try:
+            url = self.currentReqResp.getRequestUrl()
+            path = urlparse(url).path
             # Split the URL on /
             words = set(re.compile(r"[\:/?=\-&#]+", re.UNICODE).split(path) + path.split('/'))
             temp = []
@@ -3908,7 +4292,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         
                     # If path words as parameters are required, add to the list of parameters
                     if self.cbParamsEnabled.isSelected() and self.cbIncludePathWords.isSelected():
-                        self.addParameter(word.strip(), url)
+                        self.addParameter(word.strip(), "Tentative", "PATH")
         except Exception as e:
             self._stderr.println("getPathWords 1")
             self._stderr.println(e)
@@ -3923,6 +4307,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         If a plural, then return a new word as singular. If a singular, then return a new word as plural.
         IMPORTANT: This is prone to error as the english language has many exceptions to rules!
         """
+        self.txtDebugDetail.text = "processPlural: "+originalWord
         try:
             newWord = ""
             word = originalWord.strip().lower()
@@ -3990,72 +4375,263 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         Add a link, and prefix if necessary
         """
-        try:
+        self.txtDebugDetail.text = "addLink: "+url
 
+        # If the "Include relative links?" option was not selected, and the link starts with ./ or ../ then don't add
+        relativeUrl = False
+        if (url.startswith("./") or url.startswith("../")):
+            relativeUrl = True
+        if not self.cbRelativeLinks.isSelected() and relativeUrl:
+            return
+
+        try:
             # If the link contains any non ASCII characters, then url encode them
             try:
                 url.encode("ascii")
             except:
                 try:
-                    url = urllib.quote(url.encode('utf8'))
+                    url = urllib.quote(url.encode('utf8',safe=':/'))
+                    url = url.replace('%C3%83%C2%82%C3%82%C2%A0',' ').strip()
                 except:
                     url = ""
-            
-            allUrls = set()
-            # Get the netloc of the url and if blank, add the prefix
-            result = urlparse(url)
-            if result.netloc == "":
-                # If the "Include un-prefixed links" option is checked,add the original first
-                if self.cbUnPrefixed.isSelected():
-                    # Add the link and origin to the list
-                    self.link_list.add(url)
-                    self.linkUrl_list.add(url + "  [" + origin + "]")
-
-                # If the url doesn't start with a / then prefix it first
-                if url[:1] != "/":
-                    url = "/" + url
-                    
-                # If the Link Prefix option is checked, then prefix if the link doesn't have a domain
-                if self.cbLinkPrefix.isSelected() or self.cbLinkPrefixScope.isSelected():
-                    if self.cbLinkPrefix.isSelected():
-                        
-                        # Prefix each entry sepatated with a ;
-                        for link in self.inLinkPrefix.text.split(";"):
-                            allUrls.add(link + url)
-                                
-                    # If specified to use targets, then add for all of those
-                    if self.cbLinkPrefixScope.isSelected():
-                        
-                        # Prefix with each root    
-                        for root in self.roots:
-                            allUrls.add(root.rstrip("/") + url)
-                else:               
-                    allUrls.add(url)
-            else:
-                allUrls.add(url)
-            
-            # Add all necessary prefixes
-            for u in allUrls:
-                # Add the link and origin to the list
-                self.link_list.add(u)
-                self.linkUrl_list.add(u + "  [" + origin + "]")
-                # Add to In Scope lists if the URL is in scope
+            try:
+                origin.encode("ascii")
+            except:
                 try:
-                    if self.isLinkInScope(u):
-                        self.linkInScope_list.add(u)
-                        self.linkUrlInScope_list.add(u + "  [" + origin + "]")
-                except Exception as e:
-                    self._stderr.println("addLink 2")
-                    self._stderr.println(e)
+                    origin = urllib.quote(origin.encode('utf8',safe=':/'))
+                    origin = origin.replace('%C3%83%C2%82%C3%82%C2%A0',' ').strip()
+                except:
+                    origin = ""
+
+            if url != '':
+                allUrls = set()
+                # Get the netloc of the url and if blank, add the prefix
+                try:
+                    result = urlparse(url)
+
+                    if result.netloc == "":
+                            
+                        # If the "Include un-prefixed links" option is checked,add the original first
+                        if self.cbUnPrefixed.isSelected():
+                            # Add the link and origin to the list
+                            self.link_list.add(url)
+                            self.linkUrl_list.add(url + "  [" + origin + "]")
+                                
+                        # If the Link Prefix option is checked, then prefix if the link doesn't have a domain
+                        if self.cbLinkPrefix.isSelected() or self.cbLinkPrefixScope.isSelected():
+                            
+                            # If the url doesn't start with a / then prefix it first, unless it is a relative url
+                            if url[:1] != "/" and not relativeUrl:
+                                url = "/" + url
+                            
+                            if self.cbLinkPrefix.isSelected():
+                                
+                                # Prefix each entry separated with a ;
+                                for link in self.inLinkPrefix.text.split(";"):
+                                    if relativeUrl:
+                                        allUrls.add(link + "/" + url)
+                                    else:
+                                        allUrls.add(link + url)
+                                        
+                            # If specified to use targets, and the run context was Site Map tree, then add for all of those
+                            if self.cbLinkPrefixScope.isSelected() and self.context.getInvocationContext() == 4:
+                                
+                                # Prefix with each root    
+                                for prefix in self.allScopePrefixes:
+                                    if relativeUrl:
+                                        prefix = prefix + "/"
+                                    allUrls.add(prefix + url)
+                        else:               
+                            allUrls.add(url)
+                    else:
+                        allUrls.add(url)
+
+                    # Add all necessary prefixes
+                    for u in allUrls:
+                        self.checkIfCancel()
+                        u = self.removeStdPort(u)
+                        
+                        # Add the link and origin to the list
+                        self.link_list.add(u)
+                        self.linkUrl_list.add(u + "  [" + origin + "]")
+                        # Add to In Scope lists if the URL is in scope
+                        try:
+                            if self.isLinkInScope(u):
+                                self.linkInScope_list.add(u)
+                                self.linkUrlInScope_list.add(u + "  [" + origin + "]")
+                        except Exception as e:
+                            self._stderr.println("addLink 2")
+                            self._stderr.println(e)
                 
+                except Exception as e:
+                    if _debug:
+                        self._stderr.println("addLink 3: "+url)
+                        self._stderr.println(e)
+                       
         except Exception as e:
             self._stderr.println("addLink 1")
             self._stderr.println(e)
+    
+    def getSusVulnTypes(self, param):
+        """
+        Determine the vulnerability types of the "Sus" parameter passed
+        """
+        self.txtDebugDetail.text = "getSusVulnTypes: "+param
+        
+        types = ""
+        typesMin = ""
+        if param in SUS_OPENREDIRECT:
+            types = types + "Open Redirect, "
+            typesMin = typesMin + "OR, "
+        if param in SUS_DEBUG:
+            types = types + "Active Debugging, "
+            typesMin = typesMin + "DEBUG, "
+        if param in SUS_XSS:
+            types = types + "Cross-site Scripting (XSS), "
+            typesMin = typesMin + "XSS, "
+        if param in SUS_IDOR:
+            types = types + "Insecure Direct Object Reference (IDOR), "
+            typesMin = typesMin + "IDOR, "
+        if param in SUS_FILEINC:
+            types = types + "File Inclusion, "
+            typesMin = typesMin + "LFI/RFI, "
+        if param in SUS_CMDI:
+            types = types + "OS Command Injection, "
+            typesMin = typesMin + "CMDi, "
+        if param in SUS_SQLI:
+            types = types + "SQL Injection (SQLi), "
+            typesMin = typesMin + "SQLi, "
+        if param in SUS_SSRF:
+            types = types + "Server-side Request Forgery (SSRF), "
+            typesMin = typesMin + "SSRF, "
+        if param in SUS_SSTI:
+            types = types + "Server-side Template Injection (SSTI), "
+            typesMin = typesMin + "SSTI, "
+        return types.rstrip(", "), typesMin.rstrip(", ")
             
-    def addParameter(self, param, origin=""):
+    def checkSusParams(self, param, confidence, context):
+        """
+        Create a Burp Issue for a suspect paramater, and also write to the extension output
+        """
+        self.txtDebugDetail.text = "checkSusParams: "+param
+        try:
+            # Only check if the parameter is less than 20 characters long and contains nothing other than 
+            # letters, numbers, dash and under score
+            if len(param) < 20 and self.REGEX_SUSPARAM.search(param):
+                
+                origin = self.currentReqResp.getRequestUrl()
+                
+                # Determine the vulns the param is for
+                vulnTypes, minVulnTypes = self.getSusVulnTypes(param)
+
+                # If a sus parameter was found...
+                if not self.flagCANCEL and vulnTypes != '':
+            
+                    self.paramSus_list.add(param + "  [" + minVulnTypes + "]")
+                    self.paramSusUrl_list.add(param + "  [" + origin + "]")
+                    
+                    # If the report sus param option is checked then report as issue and write to extension output
+                    if self.cbReportSusParams.isSelected():
+                        
+                        # Create issue if NOT Burp Communiyty Edition
+                        if not self.isBurpCommunity:
+                            try:
+                                createIssue = True
+                                
+                                # Determine the context detail and whether to create the issue
+                                paramIssue = param+":"+origin
+                                if context == "BURP":
+                                    contextDetail = "The parameter was identified in the Request by Burp and reported by GAP.<br><br>"
+                                elif context == "REQUEST":
+                                    contextDetail = "The parameter was identified in the Request by GAP.<br><br>"
+                                    self.susParamIssue.add(paramIssue)
+                                elif context == "RESPONSE":
+                                    contextDetail = "The potential parameter was identified in the Response by GAP.<br><br>"
+                                    self.susParamIssue.add(paramIssue)
+                                elif context == "PATH":
+                                    contextDetail = "The potential parameter was identified by GAP because the <b><i>Include URL path words</i></b> option was selected.<br><br>"
+                                    if paramIssue not in self.susParamIssue:
+                                        self.susParamIssue.add(paramIssue)
+                                    else:
+                                        createIssue = False
+                                elif context == "RESPLINKS":
+                                    contextDetail = "The potential parameter was identified by GAP because the <b><i>Params from links found</i></b> option was selected.<br><br>"
+                                    if paramIssue not in self.susParamIssue:
+                                        self.susParamIssue.add(paramIssue)
+                                    else:
+                                        createIssue = False
+                                else:
+                                    contextDetail = "<br>"
+                                
+                                detail = 'The parameter <b>' + param + '</b> was found. This parameter is worthy of further investigation as it is often associated with the following vulnerability type(s): <b>' + vulnTypes + '</b><br>' + contextDetail
+                                
+                                # Look for matches of the parameter string
+                                #matchesReq = self.getMatches(self.currentReqResp.getRequest(), param)
+                                #matchesResp = self.getMatches(self.currentReqResp.getResponse(), param)
+                                
+                                # Create a scan issue
+                                httpmessage = self.currentReqResp.getMessage()
+                                if createIssue:
+                                    self.createIssue(
+                                        #http_message = self._callbacks.applyMarkers(httpmessage, matchesReq, matchesResp),
+                                        http_message = httpmessage,
+                                        issue_detail=detail,
+                                        confidence=confidence,
+                                    )
+                                
+                            except Exception as e:
+                                if _debug:
+                                    self._stderr.println("checkSusParams 2")
+                                    self._stderr.println(str(e))
+                                # If an error occurred, we cannot raise Issues in Burp so assume Community Edition
+                                self.isBurpCommunity = True
+                                pass
+                        
+                        # If Burp Community Edition then write the issue to the extension output if it hasn't been output already
+                        if self.isBurpCommunity:
+                            try:
+                                detail = "Sus Parameter (" + minVulnTypes + "): " + param + "  [" + origin.split("?",1)[0] + "]"
+                                if detail not in self.susParamText:
+                                    self.susParamText.add(detail)
+                                    print(detail)
+                            except Exception as e:
+                                self._stderr.println("checkSusParams 3")
+                                self._stderr.println(str(e))
+            
+        except Exception as e:
+            self._stderr.println("checkSusParams 1")
+            self._stderr.println(str(e))
+    
+    def getMatches(self, httpmessage, match):
+        """
+        Helper method to search a response for occurrences of a literal match string
+        and return a list of start/end offsets
+        """
+        self.txtDebugDetail.text = "getMatches"
+        matches = []
+        
+        try:
+            if httpmessage:
+                start = 0
+                reslen = len(httpmessage)
+                matchlen = len(match)
+                while start < reslen:
+                    start = self._helpers.indexOf(httpmessage, match, True, start, reslen)
+                    if start == -1:
+                        break
+                    matches.append(array('i', [start, start + matchlen]))
+                    start += matchlen
+        except Exception as e:
+            self._stderr.println("getMatches 1")
+            self._stderr.println(e)
+            
+        return matches
+    
+    def addParameter(self, param, confidence="", context=""):
         """
         Determine whether to add a parameter to the parameter list, and also to the word list depending on ticked options
         """
+        self.txtDebugDetail.text = "addParameter: "+param
         try:
             # If the parameter contains any non ASCII characters, then url encode them
             try:
@@ -4074,6 +4650,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     param = param.split("?")[0]
                                 
                 # If the origin contains any non ASCII characters, then url encode them
+                origin = self.currentReqResp.getRequestUrl()
                 try:
                     origin.encode("ascii")
                 except:
@@ -4081,9 +4658,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         origin = urllib.quote(origin.encode('utf8'))
                     except:
                         origin = "UNKNOWN"
+                
+                # Make sure any square brackets are decoded if there are in the parameter and encoded
+                param = param.replace("%5b","").replace("%5B","").replace("%5d","").replace("%5D","")
+
+                # Add the param and origin to the list if the param does not contain at least 1 character that is a letter, number or _ 
+                if param != "" and self.REGEX_PARAM.search(param) is not None:
                     
-                # Add the param and origin to the list
-                if param != "":
+                    # Check if it is a sus parameter and raise scan issue if it is enabled
+                    self.checkSusParams(param, confidence, context)
+                    
+                    #origin = self.removeStdPort(origin)
                     self.param_list.add(param)
                     self.paramUrl_list.add(param + "  [" + origin + "]")
 
@@ -4099,6 +4684,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         URL encode any unicode characters in the word and also remove any unwanted characters
         """
+        self.txtDebugDetail.text = "sanitizeWord: "+word
         try:
         # If the word contains any non ASCII characters, then url encode them
             try:
@@ -4110,11 +4696,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     word = ""
             
             if word != '':
-                word = word.replace('"','').replace('%22','')
-                word = word.replace('<','').replace('%3c','').replace('%3C','')
-                word = word.replace('>','').replace('%3e','').replace('%3E','')
-                word = word.replace('(','').replace('%28','')
-                word = word.replace(')','').replace('%28','')
+                word = self.REGEX_WORDSUB.sub('', word)
             
             return word
         except Exception as e:
@@ -4125,9 +4707,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         Determine whether to add a word to the wordlist depending on ticked options
         """
+        self.txtDebugDetail.text = "addWord: "+word
         try:
             include = True
             
+            try:
+                origin.encode("ascii")
+            except:
+                try:
+                    origin = urllib.quote(origin.encode('utf8'))
+                except:
+                    origin = ""
+                    
             word = self.sanitizeWord(word)
             
             # Check it is a minimum of 3 characters long
@@ -4151,6 +4742,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 
             # Add the word to the list if it passed the tests
             if include:
+                #origin = self.removeStdPort(origin)
                 self.word_list.add(word.strip())
                 self.wordUrl_list.add(word.strip() + "  [" + origin + "]")
                 
@@ -4164,11 +4756,144 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         except Exception as e:
             self._stderr.println("addWord 1")
             self._stderr.println(e)
+           
+    def createIssue(self, http_message, issue_detail, confidence='Certain'):
+        """
+        Create a Burp issue if one has not been raised already. 
+        Each issue is assigned a GAP signature hash and if it exists in the local collection we won't create again.
+        If it doesn't exist in the local collection then we search Burps Scan Issues and then add to local collection if we find it.
+        No excpetion handling exists in this function because we want the error raised up, to determine whether to output the issue details to the extension output instead of raising an Issue.
+        """
+        self.txtDebugDetail.text = "createIssue: "+issue_detail
+        custom_issue = CustomIssue(
+            HTTPMessage=http_message,
+            IssueDetail=issue_detail,
+            Severity='Low',
+            Confidence=confidence,
+        )
+
+        # If the issue has already been seen since GAP was loaded then just return,
+        # else add it to the list of raised issue signatures
+        if custom_issue.Signature in self.raisedIssues:
+            return
+        else:
+            self.raisedIssues.add(custom_issue.Signature)
+        
+        # Check if the current issue already exists in Burps scan issues    
+        rawUrl = http_message.url
+        url = rawUrl.getProtocol()+"://"+rawUrl.getHost()+rawUrl.getPath()
+        for issue in self._callbacks.getScanIssues(url):
+            self.checkIfCancel()
+            # If a match was found, addd it to the local collection so we don't have to keep iterating through Burps scan collection because it can be very slow
+            signature = custom_issue.isDuplicate(issue)
+            if signature != "":
+                self.raisedIssues.add(signature)
+                if _debug:
+                    print('Duplicate issue: {}'.format(custom_issue.IssueDetail))
+                return
+        self._callbacks.addScanIssue(custom_issue)
             
 class CancelGAPRequested(Exception):
     pass
 
+class ReqResp():
+    REGEX_CONTENTTYPE = re.compile(r"Content-Type:[^\n|$]*", re.IGNORECASE)
+    REGEX_PORT80 = re.compile(r":80[^0-9]")
+    REGEX_PORT443 = re.compile(r":443[^0-9]")
+    REGEX_PORTSUB80 = re.compile(r":80")
+    REGEX_PORTSUB443 = re.compile(r":443")
+        
+    def __init__(self, http_message, helpers, stderr):
+        try:
+            self.REGEX_CONTENTTYPE = re.compile(r"Content-Type:[^\r|\n|$]*", re.IGNORECASE)
+            self.httpMessage = http_message
+            self.httpRequest = http_message.getRequest()
+            self.httpResponse = http_message.getResponse()
+            if self.httpRequest:
+                self.request = helpers.analyzeRequest(self.httpRequest)
+                url = self.httpMessage.getUrl().toString()
+                if url.find(":443") > 0:
+                    if url.startswith("https:") and self.REGEX_PORT443.search(url) is not None:
+                        url = self.REGEX_PORTSUB443.sub("", url, 1)
+                elif url.find(":80") > 0:
+                    if url.startswith("http:") and self.REGEX_PORT80.search(url) is not None:
+                        url = self.REGEX_PORTSUB80.sub("", url, 1)
+                self.requestUrl = url
+                self.requestParams = self.request.getParameters()[0:]
+                resquestString = helpers.bytesToString(self.httpRequest)
+                bodyOffset = self.request.getBodyOffset()
+                self.requestBody = resquestString[bodyOffset:]    
+            else:
+                self.request = None
+                self.requestUrl = ""
+                self.requestParams = ""
+                self.requestBody = ""
+                
+            if self.httpResponse:
+                self.response = helpers.analyzeResponse(self.httpResponse)
+                self.responseString = helpers.bytesToString(self.httpResponse)
+                bodyOffset = self.response.getBodyOffset()
+                self.responseHeaders = self.responseString[:bodyOffset]
+                self.responseBody = self.responseString[bodyOffset:]   
+                try:
+                    mime = self.response.getStatedMimeType()
+                except:
+                    mime = ""
+                self.responseMIMEType = mime.upper()
+                try:
+                    contentType = str(self.REGEX_CONTENTTYPE.search(self.responseHeaders).group())
+                    # If content-type is in format like "text/plain; charset=utf-8", then just select the first part
+                    contentType = contentType.strip().split(" ")[1].split(";")[0]
+                except:
+                    contentType = ""
+                self.responseContentType = contentType
+            else:
+                self.response = None
+                self.responseString = ""
+                self.responseHeaders = None
+                self.responseBody = ""
+                self.responseMIMEType = ""
+                self.responseContentType = ""
+        except Exception as e:
+            stderr.println("ReqResp.__init__ 1")
+            stderr.println(e)
+        
+    def isRequest(self):
+        if self.httpRequest:
+            return True
+        else:
+            return False
+        
+    def isResponse(self):
+        if self.httpResponse:
+            return True
+        else:
+            return False
+        
+    def getMessage(self):
+        return self.httpMessage
+                        
+    def getRequestUrl(self):
+        return self.requestUrl
+    
+    def getRequestBody(self):
+        return self.requestBody
+    
+    def getRequestParams(self):
+        return self.requestParams
+    
+    def getResponseBody(self):
+        return self.responseBody
 
+    def getResponseHeaders(self):
+        return self.responseHeaders
+    
+    def getResponseContentType(self):
+        return self.responseContentType
+    
+    def getResponseMIMEType(self):
+        return self.responseMIMEType
+    
 class CustomKeyListener(KeyListener):
     """
     A custom event listener used for the "Apply/Clear Filter" button
@@ -4197,3 +4922,89 @@ class CustomKeyListener(KeyListener):
 
     def keyReleased(self, e=None):
         return
+
+class CustomIssue(IScanIssue):
+    """
+    A Class used to create a custom issue in Burp 
+    """
+    def __init__(self, HTTPMessage, IssueName='[GAP] Sus Parameter', IssueDetail=None, IssueBackground="From research on \"suspect\" parameters by @jhaddix and @G0LDEN_infosec, 2023.", RemediationDetail=None, RemediationBackground=None, Severity='High', Confidence='Tentative'):
+
+        self.HttpMessages=[HTTPMessage] # list of HTTP Messages
+        self.HttpService=HTTPMessage.getHttpService() # HTTP Service
+        self.Url=HTTPMessage.getUrl() # Java URL
+        self.IssueType = 134217728 # always "extension generated"
+        self.IssueName = IssueName # String
+        self.IssueDetail = IssueDetail # String or None
+        self.IssueBackground = IssueBackground # String or None
+        self.RemediationDetail = RemediationDetail # String or None
+        self.RemediationBackground = RemediationBackground # String or None
+        self.Severity = Severity # "High", "Medium", "Low", "Information" or "False positive"
+        self.Confidence = Confidence # "Certain", "Firm" or "Tentative"
+        self.Signature = self._signIssue()
+    
+    def issuehash(self, text):
+        """
+        Generate a hash value to sign the issue. This is used to avoid duplicates
+        """
+        hash=0
+        for ch in text:
+            hash = (hash*281 ^ ord(ch)*997) & 0xFFFFFFFFFFF
+        return str(hash) 
+
+    def _signIssue(self):  
+
+        sig = self.issuehash(self.IssueDetail+self.Severity+self.Confidence)
+        block = '[GAP:{}]'.format(sig)
+        self.IssueDetail += block
+        return sig
+
+    def isDuplicate(self, issue):
+
+        if issue.issueDetail is not None:
+            m = re.search(r'\[GAP:([^\]]+)\]', issue.issueDetail)
+            if m and m.group(1) == self.Signature:
+                return m.group(1)
+        return ""
+
+    def getHttpMessages(self):
+
+        return self.HttpMessages
+
+    def getHttpService(self):
+        return self.HttpService
+
+    def getUrl(self):
+        
+        return self.Url
+
+    def getConfidence(self):
+
+        return self.Confidence
+
+    def getIssueBackground(self):
+
+        return self.IssueBackground
+
+    def getIssueDetail(self):
+
+        return self.IssueDetail
+
+    def getIssueName(self):
+
+        return self.IssueName
+
+    def getIssueType(self):
+
+        return self.IssueType
+
+    def getRemediationBackground(self):
+
+        return self.RemediationBackground
+
+    def getRemediationDetail(self):
+
+        return self.RemediationDetail
+
+    def getSeverity(self):
+
+        return self.Severity
