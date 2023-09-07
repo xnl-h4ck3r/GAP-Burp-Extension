@@ -1,5 +1,22 @@
 ## Changelog
 
+- v4.1
+
+  - New
+
+    - Add `application/x-font-truetype`, `font/opentype`, `application/x-troff-man` and `image/pjpeg` to `CONTENTTYPE_EXCLUSIONS`.
+    - Add file extensions `.jfi`,`.jfif`,`.jfif-tbnl`,`.jif`,`.jpe` and `.pjpg` to `DEFAULT_EXCLUSIONS` and `FILEEXT_EXCLUSIONS`. These relate to `image/pjpeg`.
+    - If debug view is shown then also output the content types that are being processed. This is helpful for myself to add new content-types that should be excluded.
+    - Only get words from a response if it is a content-type/file that we want to process. This check is done for links and parameters bit wasn't being checked for words.
+
+  - Changed
+
+    - When calling the Burp API callbacks `isInScope` method, don't call if the host without scheme isn't valid, e.g. doesn't match regex `^([A-Za-z0-9_-]+\.)+[A-Za-z0-9_-]{2,}$`. This prevents errors that an occur in the Burp API that crashes GAP.
+    - The `FILEEXT_EXCLUSIONS` list is only checked if the Content-Type of a response isn't found. But there are sometimes cases where the Content-Type of a response is incorrect. Both will be checked to determine whether to get links from a response.
+    - Change the call `soup.findAll(text=lambda` to `soup.find_all(string=lambda` because `find_all` should be used instead of `findAll` and `text` has now been deprecated and raises a warning.
+    - When checking tag properties for values, the default was set to Null if it can't get the value, so may cause an error. The default changed to an empty string.
+    - If a link is found and the last character is `=` or `:`, then remove it.
+
 - v4.0
 
   - New

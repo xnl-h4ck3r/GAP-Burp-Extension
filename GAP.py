@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="4.0"
+VERSION="4.1"
 
 _debug = False
 
@@ -83,14 +83,14 @@ SUS_XSS = ['path','admin','class','atb','redirect_uri','other','utm_source','cur
              
 # A comma separated list of Link exclusions used when no options have been saved, or when the "Restore defaults" button is pressed
 # Links are NOT displayed if they contain these strings. This just applies to the links found in endpoints, not the origin link in which it was found
-DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,w3.org,doubleclick.net,youtube.com,.vue,jquery,bootstrap,font,jsdelivr.net,vimeo.com,pinterest.com,facebook,linkedin,twitter,instagram,google,mozilla.org,jibe.com,schema.org,schemas.microsoft.com,wordpress.org,w.org,wix.com,parastorage.com,whatwg.org,polyfill,typekit.net,schemas.openxmlformats.org,openweathermap.org,openoffice.org,reactjs.org,angularjs.org,java.com,purl.org,/image,/img,/css,/wp-json,/wp-content,/wp-includes,/theme,/audio,/captcha,/font,node_modules,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.avif"
+DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,w3.org,doubleclick.net,youtube.com,.vue,jquery,bootstrap,font,jsdelivr.net,vimeo.com,pinterest.com,facebook,linkedin,twitter,instagram,google,mozilla.org,jibe.com,schema.org,schemas.microsoft.com,wordpress.org,w.org,wix.com,parastorage.com,whatwg.org,polyfill,typekit.net,schemas.openxmlformats.org,openweathermap.org,openoffice.org,reactjs.org,angularjs.org,java.com,purl.org,/image,/img,/css,/wp-json,/wp-content,/wp-includes,/theme,/audio,/captcha,/font,node_modules,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.avif,.jfi,.jfif,.jfif-tbnl,.jif,.jpe,.pjpg"
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
-CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package"
+CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package,application/x-font-truetype,font/opentype,image/pjpeg,application/x-troff-man"
 
 # A comma separated list of file extension exclusions used when the content-type isn't available. Files with these extensions will NOT be checked
-FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.pdf"
+FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.pdf,.jfi,.jfif,.jfif-tbnl,.jif,.jpe,.pjpg"
 
 # The default value (used until options are saved, or when the "Restore defaults" button is pressed) for the generated query string of all parameters.
 DEFAULT_QSV = "XNLV"
@@ -268,6 +268,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_LINKSEARCH2 = re.compile(r"^[^{}]*\}+$")
         self.REGEX_LINKSEARCH3 = re.compile(r"^[^\[]]*\]+$")
         self.REGEX_LINKSEARCH4 = re.compile(r"<\/")
+        self.REGEX_VALIDHOST = re.compile(r"^([A-Za-z0-9_-]+\.)+[A-Za-z0-9_-]{2,}$")
         
         # Regex for sus params
         self.REGEX_SUSPARAM = re.compile("^[A-Za-z0-9_-]+$")
@@ -771,6 +772,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.txtDebugDetail.setVisible(False)
         self.txtDebugDetail.setLineWrap(True)
         self.txtDebugDetail.setEditable(False)
+        self.logContentType = False
         
         # Restore saved config settings
         self.restoreSavedConfig()
@@ -1208,6 +1210,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.txtDebug.setVisible(True)
                 self.txtDebug.text = "DEBUG TEXT WILL BE DISPLAYED"
                 self.txtDebugDetail.setVisible(True)
+                self.logContentType = True
             else:
                 Desktop.getDesktop().browse(URI(URL_GITHUB))
         except:
@@ -3006,10 +3009,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         # The Burp API needs a java.net.URL object to check if it is in scope
                         # Convert the URL. If it isn't a valid URL an exception is thrown so we can catch and not pass to Burp API
                         oUrl = URL(url)
-                        if str(oUrl.getHost()) != "":
+                        urlHost = str(oUrl.getHost())
+                        if urlHost != "":
                             try:
                                 # If a URL contains invalid characters then Burp raises an error for some reason when _callbacks.isInScope is done, and it can't be caught, so check it's valid
-                                if self.REGEX_BURPURL.search(url) is not None:
+                                #if self.REGEX_BURPURL.search(url) is not None:
+                                if self.REGEX_VALIDHOST.search(urlHost) is not None:
                                     inScope = self._callbacks.isInScope(oUrl)
                                 else: 
                                     inScope = True
@@ -3929,25 +3934,31 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             print("includeContentType started")
         include = True
 
-        contentType = self.currentReqResp.getResponseContentType()
-        url = self.currentReqResp.getRequestUrl()
-        
-        # If the content type wasn't found, check against file extensions
-        if contentType == "":
+        try:
+            contentType = self.currentReqResp.getResponseContentType()
+            url = self.currentReqResp.getRequestUrl()
+            
+            # Check against file extensions
             url = url.split("?")[0].split("#")[0].split("/")[-1]
             if url.find(".") > 0:
                 include = self.includeFile(url)
-        else:    
-            # Check the content-type against the comma separated list of exclusions
-            lstExcludeContentType = CONTENTTYPE_EXCLUSIONS.split(",")
-            for excludeContentType in lstExcludeContentType:
-                self.checkIfCancel()
-                if contentType.lower() == excludeContentType.lower():
-                    include = False
-                    break
-
-        if _debug and include:
-            print("Content-Type included: "+contentType)
+            
+            # Check against the content-type
+            if include and contentType != "": 
+                # Check the content-type against the comma separated list of exclusions
+                lstExcludeContentType = CONTENTTYPE_EXCLUSIONS.split(",")
+                for excludeContentType in lstExcludeContentType:
+                    self.checkIfCancel()
+                    if contentType.lower() == excludeContentType.lower():
+                        include = False
+                        break
+                                
+            if (_debug or self.logContentType) and include:
+                print("Content-Type included: "+contentType)
+        
+        except Exception as e:
+            self._stderr.println("ERROR includeContentType 1")
+            self._stderr.println(e)
             
         return include
 
@@ -4034,11 +4045,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     end = 1
                                 link = link[start:-end]
 
-                            # If there are any trailing back slashes, comma, ; or >; remove them all
+                            # If there are any trailing back slashes, comma, =, :, ; or >; remove them all
                             link = link.rstrip("\\")
                             link = link.rstrip(">;")
                             link = link.rstrip(";")
                             link = link.rstrip(",")
+                            link = link.rstrip("=")
+                            link = link.rstrip(":")
                             
                             # If there are any backticks in the URL, remove everything from the backtick onwards
                             link = link.split("`")[0]
@@ -4150,108 +4163,111 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if _debug:
             print("getResponseWords started")
         try:
-            contentType = self.currentReqResp.getResponseContentType()
-            mimeType = self.currentReqResp.getResponseMIMEType()
-            responseUrl = self.currentReqResp.getRequestUrl()
-            wordsProcessed = set()
-            
-            # If it's a content type we want to retrieve words from then search
-            if (mimeType in ("HTML","XML","JSON","PLAIN") or contentType.lower() in DEFAULT_WORDS_CONTENT_TYPES) and responseUrl.lower().find(".js.map") < 0:
+            # If it is content-type we want to process then carry on
+            if self.currentContentTypeInclude:
                 
-                body = self.currentReqResp.getResponseBody()
+                contentType = self.currentReqResp.getResponseContentType()
+                mimeType = self.currentReqResp.getResponseMIMEType()
+                responseUrl = self.currentReqResp.getRequestUrl()
+                wordsProcessed = set()
                 
-                # Parse html content with beautifulsoup4
-                # If html5lib is installed then use that as a parser. It is slower than the default, but is more accurate and doesn't throw runtime errors
-                allText = ""
-                try:
-                    if html5libInstalled:
-                        soup = BeautifulSoup(body, "html5lib")
-                    else:
-                        soup = BeautifulSoup(body, "html.parser")
-                except Exception as e:
-                    self._stderr.println("getResponseWords 2")
-                    self._stderr.println(e)
-                
-                # Get words from meta tag contents
-                for tag in soup.find_all("meta", content=True):
-                    self.checkIfCancel()
-                    if tag.get("property", None) in ["og:title","og:description","title","og:site_name","fb:admins"] or tag.get("name", None) in ["description","keywords","twitter:title","twitter:description","application-name","author","subject","copyright","abstract","topic","summary","owner","directory","category","og:title","og:type","og:site_name","og:description","csrf-param","apple-mobile-web-app-title","twitter:label1","twitter:data1","twitter:label2","twitter:data2","twitter:title"]:
-                        allText = allText + tag['content'] + ' '
+                # If it's a content type we want to retrieve words from then search
+                if (mimeType in ("HTML","XML","JSON","PLAIN") or contentType.lower() in DEFAULT_WORDS_CONTENT_TYPES) and responseUrl.lower().find(".js.map") < 0:
+                    
+                    body = self.currentReqResp.getResponseBody()
+                    
+                    # Parse html content with beautifulsoup4
+                    # If html5lib is installed then use that as a parser. It is slower than the default, but is more accurate and doesn't throw runtime errors
+                    allText = ""
+                    try:
+                        if html5libInstalled:
+                            soup = BeautifulSoup(body, "html5lib")
+                        else:
+                            soup = BeautifulSoup(body, "html.parser")
+                    except Exception as e:
+                        self._stderr.println("getResponseWords 2")
+                        self._stderr.println(e)
+                    
+                    # Get words from meta tag contents
+                    for tag in soup.find_all("meta", content=True):
+                        self.checkIfCancel()
+                        if tag.get("property", "") in ["og:title","og:description","title","og:site_name","fb:admins"] or tag.get("name", "") in ["description","keywords","twitter:title","twitter:description","application-name","author","subject","copyright","abstract","topic","summary","owner","directory","category","og:title","og:type","og:site_name","og:description","csrf-param","apple-mobile-web-app-title","twitter:label1","twitter:data1","twitter:label2","twitter:data2","twitter:title"]:
+                            allText = allText + tag['content'] + ' '
 
-                # Get words from link tag titles
-                for tag in soup.find_all("link", content=True):
-                    self.checkIfCancel()
-                    if tag.get("rel", None) in ["alternate","index","start","prev","next","search"]:
-                        allText = allText + tag['title'] + ' '
+                    # Get words from link tag titles
+                    for tag in soup.find_all("link", content=True):
+                        self.checkIfCancel()
+                        if tag.get("rel", "") in ["alternate","index","start","prev","next","search"]:
+                            allText = allText + tag['title'] + ' '
+        
+                    # Get words from any "alt" attribute of images if required
+                    if self.cbWordImgAlt.isSelected():
+                        for img in soup.find_all('img', alt=True):
+                            self.checkIfCancel()
+                            allText = allText + img['alt'] + ' '
+
+                    # Get words from any comments if required
+                    if self.cbWordComments.isSelected():
+                        for comment in soup.find_all(string=lambda text:isinstance(text, Comment)):
+                            self.checkIfCancel()
+                            allText = allText + comment + ' '
     
-                # Get words from any "alt" attribute of images if required
-                if self.cbWordImgAlt.isSelected():
-                    for img in soup.find_all('img', alt=True):
+                    # Remove tags we don't want content from
+                    for data in soup(['style', 'script', 'link']): 
                         self.checkIfCancel()
-                        allText = allText + img['alt'] + ' '
+                        data.decompose()
 
-                # Get words from any comments if required
-                if self.cbWordComments.isSelected():
-                    for comment in soup.findAll(text=lambda text:isinstance(text, Comment)):
+                    # Get words from the body text
+                    allText = allText + " ".join(soup.stripped_strings)
+                    
+                    # Build list of potential words over 3 characters long, that don't appear in url paths
+                    potentialWords = self.REGEX_WORDS.findall(allText)
+                    potentialWords = set(potentialWords) 
+                    
+                    # Process all words found
+                    for word in potentialWords:
+                        
+                        # If the word has already been processes, skip to the next
+                        if word in wordsProcessed:
+                            continue
+                        else:
+                            wordsProcessed.add(word)
+                        
+                        if _debug:
+                            print("  getResponseWords word: "+word)
+                                    
+                        # Ignore certain words if found in robots.txt
+                        if responseUrl.lower().find("robots.txt") > 0 and word in ("allow","disallow","sitemap","user-agent"):
+                            continue
+                        word = self.sanitizeWord(word)
                         self.checkIfCancel()
-                        allText = allText + comment + ' '
-  
-                # Remove tags we don't want content from
-                for data in soup(['style', 'script', 'link']): 
-                    self.checkIfCancel()
-                    data.decompose()
 
-                # Get words from the body text
-                allText = allText + " ".join(soup.stripped_strings)
-                
-                # Build list of potential words over 3 characters long, that don't appear in url paths
-                potentialWords = self.REGEX_WORDS.findall(allText)
-                potentialWords = set(potentialWords) 
-                
-                # Process all words found
-                for word in potentialWords:
-                    
-                    # If the word has already been processes, skip to the next
-                    if word in wordsProcessed:
-                        continue
-                    else:
-                        wordsProcessed.add(word)
-                    
-                    if _debug:
-                        print("  getResponseWords word: "+word)
-                                
-                    # Ignore certain words if found in robots.txt
-                    if responseUrl.lower().find("robots.txt") > 0 and word in ("allow","disallow","sitemap","user-agent"):
-                        continue
-                    word = self.sanitizeWord(word)
-                    self.checkIfCancel()
+                        # If "Include word with digits" is checked, only proceed with word if it has no digits
+                        if not (self.cbWordDigits and any(char.isdigit() for char in word)):
 
-                    # If "Include word with digits" is checked, only proceed with word if it has no digits
-                    if not (self.cbWordDigits and any(char.isdigit() for char in word)):
-
-                        if word.upper().isupper():
-                            # strip apostrophes
-                            word = word.replace("'", "")
-                            # add the word to the list if not a stop word and is not above the max length
-                            if len(word) > 0 and word.lower() not in self.lstStopWords and (self.inWordsMaxlen.text == "0" or len(word) <= int(self.inWordsMaxlen.text)):
-                                self.word_list.add(word)
-                                self.wordUrl_list.add(word + "  [" + responseUrl + "]")
-                                if self.cbWordLower.isSelected() and word != word.lower():
-                                    self.word_list.add(word.lower())
-                                    self.wordUrl_list.add(word.lower() + "  [GAP]")
-                                # If "Create singluar/plural words" option is checked, check if there is a singular/plural word to add
-                                if self.cbWordPlurals.isSelected():
-                                    newWord = self.processPlural(word)
-                                    if newWord != "" and len(newWord) > 3 and newWord.lower() not in self.lstStopWords:
-                                        self.word_list.add(newWord)
-                                        self.wordUrl_list.add(newWord + "  [GAP]")
-                                        if self.cbWordLower.isSelected() and newWord != newWord.lower():
-                                            self.word_list.add(newWord.lower())
-                                            self.wordUrl_list.add(newWord.lower() + "  [GAP]")
-                                        # If the original word was uppercase and didn't end in "S" but the new one does, also add the original word with a lower case "s"
-                                        if self.cbWordLower.isSelected() and word.isupper() and word[-1:] != 'S' and newWord == word + 'S':
-                                            self.word_list.add(word + 's')
-                                            self.wordUrl_list.add(word + 's' + "  [GAP]")
+                            if word.upper().isupper():
+                                # strip apostrophes
+                                word = word.replace("'", "")
+                                # add the word to the list if not a stop word and is not above the max length
+                                if len(word) > 0 and word.lower() not in self.lstStopWords and (self.inWordsMaxlen.text == "0" or len(word) <= int(self.inWordsMaxlen.text)):
+                                    self.word_list.add(word)
+                                    self.wordUrl_list.add(word + "  [" + responseUrl + "]")
+                                    if self.cbWordLower.isSelected() and word != word.lower():
+                                        self.word_list.add(word.lower())
+                                        self.wordUrl_list.add(word.lower() + "  [GAP]")
+                                    # If "Create singluar/plural words" option is checked, check if there is a singular/plural word to add
+                                    if self.cbWordPlurals.isSelected():
+                                        newWord = self.processPlural(word)
+                                        if newWord != "" and len(newWord) > 3 and newWord.lower() not in self.lstStopWords:
+                                            self.word_list.add(newWord)
+                                            self.wordUrl_list.add(newWord + "  [GAP]")
+                                            if self.cbWordLower.isSelected() and newWord != newWord.lower():
+                                                self.word_list.add(newWord.lower())
+                                                self.wordUrl_list.add(newWord.lower() + "  [GAP]")
+                                            # If the original word was uppercase and didn't end in "S" but the new one does, also add the original word with a lower case "s"
+                                            if self.cbWordLower.isSelected() and word.isupper() and word[-1:] != 'S' and newWord == word + 'S':
+                                                self.word_list.add(word + 's')
+                                                self.wordUrl_list.add(word + 's' + "  [GAP]")
         except Exception as e:
             if not self.flagCANCEL:
                 self._stderr.println("getResponseWords 1")
@@ -4846,7 +4862,7 @@ class ReqResp():
                     contentType = contentType.strip().split(" ")[1].split(";")[0]
                 except:
                     contentType = ""
-                self.responseContentType = contentType
+                self.responseContentType = contentType.strip()
             else:
                 self.response = None
                 self.responseString = ""
