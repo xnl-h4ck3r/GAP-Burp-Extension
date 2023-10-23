@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.2
+
+  - Changed
+
+    - Change the test displayed in the Words mode text box if the `beautifulsoup4` module could not be loaded. This will include the installation instructions.
+
 - v4.1
 
   - New

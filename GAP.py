@@ -60,8 +60,11 @@ try:
     from bs4 import BeautifulSoup, Comment
     warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 except Exception as e:
-    WORDLIST_IMPORT_ERROR = "The following error occurred when importing beauttifulsoup4: " + str(e) + "\nPlease make sure you have followed the installation instructions on https://github.com/xnl-h4ck3r/GAP-Burp-Extension#installation\n"
-    print("WARNING: Could not import beauttifulsoup4 for word mode: " + str(e))
+    if str(e).startswith("No module named"):
+        WORDLIST_IMPORT_ERROR = "The following installation instructions NEED TO BE FOLLOWED EXACTLY to be able to use Words mode (as mentioned in https://github.com/xnl-h4ck3r/GAP-Burp-Extension#installation). NOTE: Links and Parameters mode will still work without this.\n\n1. Visit https://www.jython.org/download, and download the latest stand alone JAR file, e.g. jython-standalone-2.7.3.jar.\n2. Open Burp, go to Extensions -> Extension Settings -> Python Environment, set the Location of Jython standalone JAR file and Folder for loading modules to the directory where the Jython JAR file was saved.\n3. On a command line, go to the directory where the jar file is and run \"java -jar jython-standalone-2.7.3.jar -m ensurepip\".\n4. Download the GAP.py and requirements.txt from this project and place in the same directory.\n5. Install Jython modules by running \"java -jar jython-standalone-2.7.3.jar -m pip install -r requirements.txt\".\n6. Go to the Extensions -> Installed and click Add under Burp Extensions.\n7. Select Extension type of Python and select the GAP.py file (this file can be placed in any directory)."
+    else:
+        WORDLIST_IMPORT_ERROR = "The following error occurred when importing beauttifulsoup4: " + str(e) + "\nPlease make sure you have followed the installation instructions on https://github.com/xnl-h4ck3r/GAP-Burp-Extension#installation\n"
+        print("WARNING: Could not import beauttifulsoup4 for word mode: " + str(e))
     
 # Try to import html5lib as a parser for beautifulsoup4 because it's more accurate than the default html.parser
 try:
@@ -715,7 +718,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbShowWordOrigin.setEnabled(False)
         self.cbShowWordOrigin.addItemListener(self.changeWordDisplay)
         self.outWordList = JTextArea(30, 100)
-        self.outWordList.setLineWrap(False)
+        if WORDLIST_IMPORT_ERROR != "":
+            self.outWordList.setWrapStyleWord(True)
+            self.outWordList.setLineWrap(True)
+        else:
+            self.outWordList.setLineWrap(False)
         self.outWordList.setEditable(False)
         if WORDLIST_IMPORT_ERROR != "":
             self.outWordList.text = WORDLIST_IMPORT_ERROR
