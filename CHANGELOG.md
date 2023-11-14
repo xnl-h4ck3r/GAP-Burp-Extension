@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.3
+
+  - New
+
+    - Add new Sus parameter group for Mass Assignment as requested in https://twitter.com/nullenc0de/status/1700496197570453700?s=20
+
 - v4.2
 
   - Changed

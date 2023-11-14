@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="4.1"
+VERSION="4.3"
 
 _debug = False
 
@@ -83,6 +83,9 @@ SUS_SQLI = ['process','string','id','referer','password','pwd','field','view','s
 SUS_SSRF = ['start','path','domain','source','url','site','view','template','page','show','val','dest','metadata','out','feed','navigation','image_host','uri','next','continue','host','window','dir','reference','filename','html','to','return','open','port','stop','validate','resturl','callback','name','data','ip','redirect']
 SUS_SSTI = ['preview','activity','id','name','content','view','template','redirect']
 SUS_XSS = ['path','admin','class','atb','redirect_uri','other','utm_source','currency','dir','title','endpoint','return_url','users','cookie','state','callback','militarybranch','e','referer','password','author','body','status','utm_campaign','value','text','search','flaw','vote','pathname','params','user','t','utm_medium','q','email','what','file','data-original','description','subject','action','u','nickname','color','language_id','auth','samlresponse','return','readyfunction','where','tags','cvo_sid1','target','format','back','term','r','id','url','view','username','sequel','type','city','src','p','label','ctx','style','html','ad_type','s','issues','query','c','shop','redirect']
+
+# Additional Sus Parameters
+SUS_MASSASSIGNMENT = ['user','profile','role','settings','data','attributes','post','comment','order','product','form_fields','request']
              
 # A comma separated list of Link exclusions used when no options have been saved, or when the "Restore defaults" button is pressed
 # Links are NOT displayed if they contain these strings. This just applies to the links found in endpoints, not the origin link in which it was found
@@ -4530,6 +4533,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         if param in SUS_SSTI:
             types = types + "Server-side Template Injection (SSTI), "
             typesMin = typesMin + "SSTI, "
+        if param in SUS_MASSASSIGNMENT:
+            types = types + "Mass Assignment, "
+            typesMin = typesMin + "MASS-ASSIGN, "
         return types.rstrip(", "), typesMin.rstrip(", ")
             
     def checkSusParams(self, param, confidence, context):
