@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.4
+
+  - Changed
+
+    - Added `application/font-otf` to the list of MIME types to ignore.
+
 - v4.3
 
   - New
