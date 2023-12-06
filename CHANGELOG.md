@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.5
+
+  - New
+
+    - Added `application/x-msdownload` and `application/x-ms-application` to the list of MIME types to ignore.
+
 - v4.4
 
   - Changed
