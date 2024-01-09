@@ -1,5 +1,17 @@
 ## Changelog
 
+- v4.6
+
+  - New
+
+    - Added `video/x-ms-wmv,image/x-png,video/quicktime,image/x-ms-bmp,font/opentype,application/x-font-opentype,application/x-woff,audio/aiff` to the list of MIME types to ignore.
+    - If a parameter value has a backslash, forward slash, `quot;`,`apos;` or `amp;` in it, they will be removed.
+
+  - Changed
+
+    - After the new footer has been added in the recent version of Burp, some of the GAP controls are covered on a standard display. I have moved things around a bit to ensure they are all visible.
+    - The functionality to remove the logo header with Ctrl-Click has been removed as is no longer relevant.
+
 - v4.5
 
   - New

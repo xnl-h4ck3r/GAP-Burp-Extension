@@ -93,7 +93,7 @@ DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
-CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package,application/x-font-truetype,font/opentype,image/pjpeg,application/x-troff-man,application/font-otf,application/x-ms-application,application/x-msdownload"
+CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package,application/x-font-truetype,font/opentype,image/pjpeg,application/x-troff-man,application/font-otf,application/x-ms-application,application/x-msdownload,video/x-ms-wmv,image/x-png,video/quicktime,image/x-ms-bmp,font/opentype,application/x-font-opentype,application/x-woff,audio/aiff"
 
 # A comma separated list of file extension exclusions used when the content-type isn't available. Files with these extensions will NOT be checked
 FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.pdf,.jfi,.jfif,.jfif-tbnl,.jif,.jpe,.pjpg"
@@ -479,19 +479,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbWordsEnabled = self.defineCheckBox("Words", True)
         self.cbWordsEnabled.addItemListener(self.cbWordsEnabled_clicked)
 
-        # GAP Mode group
-        self.lblMode = JLabel("GAP Mode: ")
-        self.lblMode.setFont(FONT_GAP_MODE)
-        self.lblMode.setForeground(COLOR_BURP_ORANGE)
-        self.grpMode = JPanel()
-        self.grpMode.setBorder(
-            BorderFactory.createLineBorder(COLOR_BURP_ORANGE, 2, True)
-        )
-        self.grpMode.add(self.lblMode)
-        self.grpMode.add(self.cbParamsEnabled)
-        self.grpMode.add(self.cbLinksEnabled)
-        self.grpMode.add(self.cbWordsEnabled)
-
         # Words sections
         self.lblWhichWords = JLabel("Words mode options:")
         self.lblWhichWords.setFont(FONT_HEADER)
@@ -571,16 +558,31 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Set the GAP logo
         try:
             initialImg = ImageIO.read(URL(URL_GAP_LOGO))
-            width = self.grpMode.getPreferredSize().width+self.grpHelp.getPreferredSize().width+self.grpKoFi.getPreferredSize().width
-            height = int(round(width / 15))
+            width = 300
+            height = 30
             scaledImg = initialImg.getScaledInstance(width, height, Image.SCALE_SMOOTH)
             self.btnLogo = JButton(ImageIcon(scaledImg),actionPerformed=self.btnLogo_clicked)
             self.btnLogo.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
             self.btnLogo.setToolTipText("Check out my Github page")
+            self.btnLogo.setBorder(BorderFactory.createEmptyBorder())
         except:
             self.btnLogo = JButton()
             self.btnLogo.setVisible(False)
-            
+        
+        # GAP Mode group
+        self.lblMode = JLabel("GAP Mode: ")
+        self.lblMode.setFont(FONT_GAP_MODE)
+        self.lblMode.setForeground(COLOR_BURP_ORANGE)
+        self.grpMode = JPanel()
+        self.grpMode.setBorder(
+            BorderFactory.createLineBorder(COLOR_BURP_ORANGE, 2, True)
+        )
+        self.grpMode.add(self.btnLogo)
+        self.grpMode.add(self.lblMode)
+        self.grpMode.add(self.cbParamsEnabled)
+        self.grpMode.add(self.cbLinksEnabled)
+        self.grpMode.add(self.cbWordsEnabled)
+        
         # Output options section
         self.lblOutputOptions = JLabel("Other options:")
         self.lblOutputOptions.setFont(FONT_HEADER)
@@ -797,30 +799,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 layout.createSequentialGroup()
                 .addGroup(
                     layout.createParallelGroup()
-                    .addComponent(self.btnLogo,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                                )
-                    .addGroup(
-                        layout.createSequentialGroup()
-                        .addComponent(
+                    .addComponent(
                             self.grpMode,
                             GroupLayout.PREFERRED_SIZE,
                             GroupLayout.PREFERRED_SIZE,
                             GroupLayout.PREFERRED_SIZE,
-                        )
-                        .addComponent(
-                            self.grpHelp,
-                            GroupLayout.PREFERRED_SIZE,
-                            GroupLayout.PREFERRED_SIZE,
-                            GroupLayout.PREFERRED_SIZE,
-                        )
-                        .addComponent(self.grpKoFi,
-                            GroupLayout.PREFERRED_SIZE,
-                            GroupLayout.PREFERRED_SIZE,
-                            GroupLayout.PREFERRED_SIZE,)
-                    )
+                            )
                     .addComponent(self.lblWhichParams)
                     .addGroup(
                         layout.createSequentialGroup()
@@ -845,6 +829,19 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             .addComponent(self.cbParamInputField)
                             .addComponent(self.cbParamJSVars)
                             .addComponent(self.cbParamFromLinks)
+                            .addGroup(
+                                layout.createSequentialGroup()
+                                .addComponent(
+                                    self.grpHelp,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                )
+                                .addComponent(self.grpKoFi,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,
+                                    GroupLayout.PREFERRED_SIZE,)
+                            )
                         )
                     )
                     .addComponent(self.lblLinkOptions)
@@ -991,30 +988,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 layout.createParallelGroup()
                 .addGroup(
                     layout.createSequentialGroup()
-                    .addComponent(self.btnLogo,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                                )
-                    .addGroup(
-                            layout.createParallelGroup()
-                            .addComponent(
+                    .addComponent(
                                 self.grpMode,
                                 GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.PREFERRED_SIZE,
                                 GroupLayout.PREFERRED_SIZE,
-                            )
-                            .addComponent(
-                                self.grpHelp,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                            )
-                            .addComponent(self.grpKoFi,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,
-                                GroupLayout.PREFERRED_SIZE,)
-                        )
+                                )
                     .addComponent(self.lblWhichParams)
                     .addGroup(
                         layout.createParallelGroup()
@@ -1039,6 +1018,19 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             .addComponent(self.cbParamInputField)
                             .addComponent(self.cbParamJSVars)
                             .addComponent(self.cbParamFromLinks)
+                            .addGroup(
+                            layout.createParallelGroup()
+                            .addComponent(
+                                self.grpHelp,
+                                GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.PREFERRED_SIZE,
+                            )
+                            .addComponent(self.grpKoFi,
+                                GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.PREFERRED_SIZE,
+                                GroupLayout.PREFERRED_SIZE,)
+                        )
                         )
                     )
                     .addComponent(self.lblLinkOptions)
@@ -1214,9 +1206,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         try:
             self.setTabDefaultColor()
         # If the user held down the Ctrl button when clicking the header, then hide the header
-            if str(e).find("Ctrl+Button1") > 0:
-                self.btnLogo.setVisible(False)
-            elif str(e).find("Shift+Button1") > 0:
+            if str(e).find("Shift+Button1") > 0:
                 self.txtDebug.setVisible(True)
                 self.txtDebug.text = "DEBUG TEXT WILL BE DISPLAYED"
                 self.txtDebugDetail.setVisible(True)
@@ -4691,6 +4681,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # Make sure any square brackets are decoded if there are in the parameter and encoded
                 param = param.replace("%5b","").replace("%5B","").replace("%5d","").replace("%5D","")
 
+                # If the parameter has any backslashes, forward slashes, quot;, apos; or amp; in, then remove them
+                param = param.replace('\\', '').replace('/', '').replace('quot;','').replace('apos;','').replace('amp;','')
+                
                 # Add the param and origin to the list if the param does not contain at least 1 character that is a letter, number or _ 
                 if param != "" and self.REGEX_PARAM.search(param) is not None:
                     
