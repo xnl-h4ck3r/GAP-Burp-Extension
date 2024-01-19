@@ -1,0 +1,17 @@
+<p>This extension helps find potential endpoints, parameters, and generate a custom target wordlist.</p>
+
+<p>Usage</p>
+
+<ul>
+	<li>Select a target in your Burp scope (or multiple targets), or even just one subfolder or endpoint, and use the context menu action to send the target to "GAP". Alternatively, right click a request or response in any other context and select GAP from the Extensions menu.</li>
+	<li>Go to the GAP tab to view the results.</li>
+</ul>
+
+<p>Important notes:</p>
+<ul>
+	<li>If you don't need one of the modes, then un-check it as results will be quicker.</li>
+	<li>If you run GAP for one or more targets from the Site Map view, don't have them expanded when you run GAP... unfortunately this can make it a lot slower. It will be more efficient if you run for one or two target in the Site Map view at a time, as huge projects can have consume a lot of resources.</li>
+	<li>If you want to run GAP on one of more specific requests, do not select them from the Site Map tree view. It will be a lot quicker to run it from the Site Map Contents view if possible, or from proxy history.</li>
+	<li>It is hard to design GAP to display all controls for all screen resolutions and font sizes. I have tried to deal with the most common setups, but if you find you cannot see all the controls, you can hold down the "Ctrl" button and click the GAP logo header image to remove it to make more space.</li>
+	<li>The Words mode uses the "beautifulsoup4" library and this can be quite slow, so be patient!</li>
+</ul>

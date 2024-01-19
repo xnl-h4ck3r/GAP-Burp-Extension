@@ -1,0 +1,13 @@
+Uuid: 815bb4ab64e240618dc673d65016e919
+ExtensionType: 2
+Name: Get All Parameters
+RepoName: get-all-parameters
+ScreenVersion: 4.6
+SerialVersion: 1
+MinPlatformVersion: 2
+ProOnly: False
+Author: XNL-h4ck3r
+ShortDescription: Find potential endpoints, parameters, and generate a custom target wordlist.
+EntryPoint: GAP.py
+BuildCommand: 
+SupportedProducts: Pro, Community
