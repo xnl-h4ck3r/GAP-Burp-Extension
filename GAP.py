@@ -2884,13 +2884,17 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
             try:
                 # Try to get the title of the Burp Project from the Title
-                burpTitle = self.getUiComponent().getParent().getParent().getParent().getParent().getParent().getTitle()
+                try:
+                    burpTitle = self.getUiComponent().getParent().getParent().getParent().getParent().getParent().getTitle()
+                except:
+                    burpTitle = self.getUiComponent().getParent().getParent().getParent().getParent().getParent().getParent().getTitle()
                 # Check if it says "Temporary Project". If it does, use "Temp", else get the project name
                 if "Temporary Project" in burpTitle:
                     projectName = "TempProject_"
                 else:
                     projectName = burpTitle.split(" - ")[1].strip() + "_"
             except:
+                projectName = "UnknownProject_"
                 pass
                 
             fileName = projectName + datetime.now().strftime("%Y%m%d_%H%M%S")

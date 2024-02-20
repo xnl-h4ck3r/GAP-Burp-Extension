@@ -1,5 +1,11 @@
 ## Changelog
 
+- v4.7
+
+  - Changed
+
+    - When more that one target is selected and the `Auto save` option is selected, GAP attempts to get the Burp project name from the root window to write the accumulated files. If it failed to get the project name, it raised an error and failed to create the files. This bug has been fixed. If GAP is unable to get the project name, it will just write the accumulated file names with `UnknownProject_`.
+
 - v4.6
 
   - New
