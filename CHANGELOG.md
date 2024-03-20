@@ -1,5 +1,16 @@
 ## Changelog
 
+- v4.8
+
+  - New
+
+    - Add mime types `image/jp2` and `video/x-m4v` to the `CONTENTTYPE_EXCLUSIONS` list.
+
+  - Changed
+
+    - BUG FIX: When the context is NOT Site Map, and the `Prefix with selected target(s)` option is selected, it did not output any URLs that did not have a domain. The URLs domain is now used, and all links output correctly.
+    - BUG FIX: When a URL is entered in the `Prefix with links(s)` field, it is highlighted in red for an invalid URL, bu the regex used is incorrect. This has been replaced wit a more effective regex.
+
 - v4.7
 
   - Changed

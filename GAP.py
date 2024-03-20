@@ -93,7 +93,7 @@ DEFAULT_EXCLUSIONS = ".css,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.
 
 # A comma separated list of Content-Type exclusions used to determine what requests are checked for potential links
 # These content types will NOT be checked
-CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package,application/x-font-truetype,font/opentype,image/pjpeg,application/x-troff-man,application/font-otf,application/x-ms-application,application/x-msdownload,video/x-ms-wmv,image/x-png,video/quicktime,image/x-ms-bmp,font/opentype,application/x-font-opentype,application/x-woff,audio/aiff"
+CONTENTTYPE_EXCLUSIONS = "text/css,image/jpeg,image/jpg,image/png,image/svg+xml,image/gif,image/tiff,image/webp,image/bmp,image/x-icon,image/vnd.microsoft.icon,font/ttf,font/woff,font/woff2,font/x-woff2,font/x-woff,font/otf,audio/mpeg,audio/wav,audio/webm,audio/aac,audio/ogg,audio/wav,audio/webm,video/mp4,video/mpeg,video/webm,video/ogg,video/mp2t,video/webm,video/x-msvideo,application/font-woff,application/font-woff2,application/vnd.android.package-archive,binary/octet-stream,application/octet-stream,application/pdf,application/x-font-ttf,application/x-font-otf,application/x-font-woff,application/vnd.ms-fontobject,image/avif,application/zip,application/x-zip-compressed,application/x-msdownload,application/x-apple-diskimage,application/x-rpm,application/vnd.debian.binary-package,application/x-font-truetype,font/opentype,image/pjpeg,application/x-troff-man,application/font-otf,application/x-ms-application,application/x-msdownload,video/x-ms-wmv,image/x-png,video/quicktime,image/x-ms-bmp,font/opentype,application/x-font-opentype,application/x-woff,audio/aiff,image/jp2,video/x-m4v"
 
 # A comma separated list of file extension exclusions used when the content-type isn't available. Files with these extensions will NOT be checked
 FILEEXT_EXCLUSIONS = ".zip,.dmg,.rpm,.deb,.gz,.tar,.jpg,.jpeg,.png,.svg,.img,.gif,.mp4,.flv,.ogv,.webm,.webp,.mov,.mp3,.m4a,.m4p,.scss,.tif,.tiff,.ttf,.otf,.woff,.woff2,.bmp,.ico,.eot,.htc,.rtf,.swf,.image,.wav,.gltf,.pict,.svgz,.eps,.midi,.mid,.pdf,.jfi,.jfif,.jfif-tbnl,.jif,.jpe,.pjpg"
@@ -1926,7 +1926,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         fixedLinks = link
                     else:
                         fixedLinks = fixedLinks + ";" + link
-                    if re.search(r'^(https?:)\/\/.[^\.]*\.[a-z]{2,}[^\?#]*$', link, flags=re.IGNORECASE) is None:
+                    if re.search(r'^https?:\/\/([-a-z0-9@:%._\+~#=]{1,256}\.)+[a-z0-9]{2,6}$', link, flags=re.IGNORECASE) is None:
                         invalid = True
                 if not invalid:
                     self.inLinkPrefix.text = fixedLinks
@@ -2731,7 +2731,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     
                     # Get the current request/response details
                     self.currentReqResp = ReqResp(http_message, self._helpers, self._stderr)
-                    self.roots.add(self.currentReqResp.getRequestUrl())
+                    root = self.currentReqResp.getRequestUrl()
+                    self.roots.add(root)
+                    prefix = urlparse(root).scheme + "://" + urlparse(root).netloc
+                    self.allScopePrefixes.add(prefix)
                     
                     if self.currentReqResp.isRequest():
                         
@@ -4454,7 +4457,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                         allUrls.add(link + url)
                                         
                             # If specified to use targets, and the run context was Site Map tree, then add for all of those
-                            if self.cbLinkPrefixScope.isSelected() and self.context.getInvocationContext() == 4:
+                            if self.cbLinkPrefixScope.isSelected(): # and self.context.getInvocationContext() == 4:
                                 
                                 # Prefix with each root    
                                 for prefix in self.allScopePrefixes:
