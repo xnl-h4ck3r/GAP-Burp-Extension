@@ -1,5 +1,17 @@
 ## Changelog
 
+- v4.9
+
+  - New
+
+    - You can click the progress bar to see a modal dialog box showing the datetime of the last run, with the context GAP was run from (e.g. `Target Site Map Tree`, `Proxy History`, etc.) and a list of Hosts. For all contexts other than `Target Site Map Tree`, there will be a `Show hosts only` check box (defaults to checked). If unchecked, then a list of unique target URLs are displayed instead.
+    - You can now right click on the params, words and links pane and click the `Copy` link to copy the contents of that pane to the clipboard. For "sus" parameters view, the parameters will be copied without the vulnerability types in square brackets after them.
+    - If GAP is called from the Site Map tree context, then Scope has to be set to work. This can often make people think GAP isn't working correctly. So, if run from this context and no content is found, and additional message is given in the output pane(s) saying `Maybe scope isn't set? It needs to be set to call GAP from the Site Map tree. Ignore this if there are results for other modes.`
+
+  - Changed
+
+    - Change the progress bar tooltip text to `Click to see execution scope. When running, this shows what request is being processed out of the total number of requests for current target.`
+
 - v4.8
 
   - New

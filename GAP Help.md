@@ -116,13 +116,13 @@ In addition to the options above, words will be taken from all responses with ce
 </ul>
 
 <h1>GAP Output</h1>
-Below is an explanation of the output given when GAP has completed running.
+Below is an explanation of the output given when GAP has completed running. When running has been completed, you can click the right mouse button in the parameter, words or links pane to get a <code>Copy</code> link. Clicking this will copy whatever is in the pane to your clipboard.
 
 <h2>Potential Parameters</h2>
 <ul>
 <li><b>Potential parameters found</b> - This text are will show all unique potential parameters, one per line.</li>
 <li><b>Show origin</b> - If this feature is ticked, the potential parameter will be followed by the HTTP request endpoint (in square brackets) that the parameter was found in. A parameter could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.</li>
-<li><b>Show "sus"</b> - If this feature is ticked, only potential parameters that are "sus" are shown followed by the associated vulnerability type(s) (in square brackets).</li>
+<li><b>Show "sus"</b> - If this feature is ticked, only potential parameters that are "sus" are shown followed by the associated vulnerability type(s) (in square brackets). <b>NOTE: If you right click and select <code>Copy</code> you will have the parameter names WITHOUT the vuln types copied to your clipboard.</b>></li>
 <li><b>Show query string with value</b> - This checkbox can be used to switch between the list of parameters and a concatenated query string with all parameters with a value given in the following text box.</li>
 <li><b>Param Value</b> - This defaults to XNLV and is a value that is used to create the concatenated query string, with each parameter given this value followed by a unique number of the parameter. This query string can be used to manually append to a URL and check for reflections.</li>
 </ul>

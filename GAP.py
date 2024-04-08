@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="4.5"
+VERSION="4.9"
 
 _debug = False
 
@@ -29,16 +29,19 @@ from javax.swing import (
     BorderFactory,
     JEditorPane,
     ImageIcon,
-    JProgressBar
+    JProgressBar,
+    JDialog,
+    JPopupMenu
 )
 from java.util import ArrayList
 from urlparse import urlparse
 from java.io import PrintWriter, File
-from java.awt import Color, Font, Image, Cursor, Desktop
-from java.awt.event import KeyListener
+from java.awt import Color, Font, Image, Cursor, Desktop, BorderLayout, GridLayout, FlowLayout, Toolkit
+from java.awt.event import KeyListener, MouseListener, ItemListener, MouseEvent
 from java.net import URL, URI
 from java.lang import System
 from javax.imageio import ImageIO
+from java.awt.datatransfer import StringSelection, Clipboard
 
 import os
 import re
@@ -156,7 +159,16 @@ URL_GITHUB = "https://github.com/xnl-h4ck3r"
 
 # Set the colour for Burp Orange
 COLOR_BURP_ORANGE = Color(0xE36B1E)
-        
+
+# Global variable used for Scope Execution dialog 
+LAST_RUN_CONTEXT = None
+LAST_RUN_DATE = None
+ALL_ROOTS = {}
+IS_RUNNING = False
+
+# Default warning if context is Site Map tree and no results are returned
+DEFAULT_WARNING_NO_CONTENT = '\n\nMaybe scope isn\'t set?\nIt needs to be set to call GAP from the Site Map tree.\nIgnore this if there are results for other modes.'
+
 class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
     def registerExtenderCallbacks(self, callbacks):
         """
@@ -353,7 +365,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.inQueryStringVal.setToolTipText("This is a value that is used to create the concatenated query string, with each parameter given this value followed by a unique number of the parameter.\nThis query string can be used to manually append to a URL and check for reflections.")
             self.btnRestoreDefaults.setToolTipText("If for any reason you want to revert to the default configuration options, you can click this button.")
             self.btnSave.setToolTipText("Any changes made to the configuration settings of GAP can be saved for future use by clicking this button.")
-            self.progBar.setToolTipText("What request is being processed out of the total number of requests for current target.")
+            self.progBar.setToolTipText("Click to see execution scope. When running, this shows what request is being processed out of the total number of requests for current target.")
             self.progStage.setToolTipText("What Site Map target is being processed out of the total number of targets selected.")
             self.cbShowParamOrigin.setToolTipText("If this is ticked, the potential parameter will be followed by the HTTP request endpoint (in square brackets) that the parameter was found in.\nA parameter could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.")
             self.cbShowLinkOrigin.setToolTipText("If this feature is ticked, the potential link will be followed by the HTTP request endpoint (in square brackets) that the link was found in.\nA link could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.")
@@ -625,6 +637,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.btnCancel.setVisible(False)
         # Create progress bar
         self.progBar = JProgressBar()
+        self.progBar.addMouseListener(ProgressBarMouseListener())
+        self.progBar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
         self.progBar.setValue(0)
         self.progBar.setStringPainted(True)
         self.progBar.setVisible(False)
@@ -646,6 +660,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.lblParamList.setFont(FONT_HEADER)
         self.lblParamList.setForeground(COLOR_BURP_ORANGE)
         self.outParamList = JTextArea(30, 100)
+        self.outParamList.addMouseListener(OutputMouseListener(self.outParamList,"Param"))
         self.outParamList.setLineWrap(False)
         self.outParamList.setEditable(False)
         self.scroll_outParamList = JScrollPane(self.outParamList)
@@ -661,9 +676,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbShowParamOrigin.setEnabled(False)
         self.cbShowParamOrigin.addItemListener(self.changeParamDisplay)
         self.outParamSus = JTextArea(30, 100)
+        self.outParamSus.addMouseListener(OutputMouseListener(self.outParamSus,"Param"))
         self.outParamSus.setLineWrap(True)
         self.outParamSus.setEditable(False)
         self.outParamQuery = JTextArea(30, 100)
+        self.outParamQuery.addMouseListener(OutputMouseListener(self.outParamQuery,"ParamQuery"))
         self.outParamQuery.setLineWrap(True)
         self.outParamQuery.setEditable(False)
         
@@ -672,6 +689,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.lblLinkList.setFont(FONT_HEADER)
         self.lblLinkList.setForeground(COLOR_BURP_ORANGE)
         self.outLinkList = JTextArea(30, 100)
+        self.outLinkList.addMouseListener(OutputMouseListener(self.outLinkList,"Links"))
         self.outLinkList.setLineWrap(False)
         self.outLinkList.setEditable(False)
         self.scroll_outLinkList = JScrollPane(self.outLinkList)
@@ -723,6 +741,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbShowWordOrigin.setEnabled(False)
         self.cbShowWordOrigin.addItemListener(self.changeWordDisplay)
         self.outWordList = JTextArea(30, 100)
+        self.outWordList.addMouseListener(OutputMouseListener(self.outWordList,"Words"))
         if WORDLIST_IMPORT_ERROR != "":
             self.outWordList.setWrapStyleWord(True)
             self.outWordList.setLineWrap(True)
@@ -1383,7 +1402,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 else:
                     if self.cbShowQueryString.isSelected():
                         if self.cbShowSusParams.isSelected():
-                            if self.txtParamQuerySus == "" or self.txtParamQuerySus == "NO PARAMETERS FOUND":
+                            if self.txtParamQuerySus == "" or self.txtParamQuerySus.startswith("NO PARAMETERS FOUND"):
                                 index = 0
                                 paramQuery = ""
                                 self.outParamQuery.text = "UPDATING..."
@@ -1396,7 +1415,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                             self.outParamQuery.text = self.txtParamQuerySus
                         else:
                             # Set the values if not already set
-                            if self.txtParamQuery == "" or self.txtParamQuery == "NO PARAMETERS FOUND":
+                            if self.txtParamQuery == "" or self.txtParamQuery.startswith("NO PARAMETERS FOUND"):
                                 index = 0
                                 paramQuery = ""
                                 self.outParamQuery.text = "UPDATING..."
@@ -2610,6 +2629,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Obtains the selected messages from the interface. Filters the sitemap for all messages containing
         URLs within the selected messages' hierarchy. If so, the message is analyzed to create a parameter list.
         """    
+        global LAST_RUN_CONTEXT, LAST_RUN_DATE, ALL_ROOTS, IS_RUNNING
         if _debug:
             print("doEverything started")
         
@@ -2629,6 +2649,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.progBar.setMaximum(0)
         self.progBar.setString("Starting...")
         self.progBar.setVisible(True)
+        IS_RUNNING = True
+        ALL_ROOTS = {}
         
         # Ensure the full list of parameters are shown first
         self.cbShowSusParams.setSelected(False)
@@ -2640,6 +2662,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             
             # If the Site Map Tree was the context for GAP, then get the Site Map instead of the selected messages
             # because in that case it only takes the root
+            LAST_RUN_CONTEXT = self.context.getInvocationContext()
+            LAST_RUN_DATE = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
             if self.context.getInvocationContext() == 4:
                 
                 for http_message in allMessages:
@@ -2656,6 +2680,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         self.allScopePrefixes.add(prefix)
                                 
                 # Get all sitemap entries associated with the selected messages and scrape them for parameters, links and words
+                ALL_ROOTS = self.roots
                 currentRoot = 0
                 totalRoots = len(self.roots)
                 for root in self.roots:
@@ -2733,6 +2758,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.currentReqResp = ReqResp(http_message, self._helpers, self._stderr)
                     root = self.currentReqResp.getRequestUrl()
                     self.roots.add(root)
+                    ALL_ROOTS = self.roots
                     prefix = urlparse(root).scheme + "://" + urlparse(root).netloc
                     self.allScopePrefixes.add(prefix)
                     
@@ -2764,6 +2790,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.displayResults()
 
             # Change button to completed
+            IS_RUNNING = False
             self.setTabColor(COLOR_BURP_ORANGE)
             self.setTabTitle("GAP")
             self.checkIfCancel()
@@ -2787,6 +2814,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.setTabTitle("GAP")
             self.btnCancel.setEnabled(False)
             self.btnCancel.setText("   CANCELLED    ")
+            IS_RUNNING = False
             if (
                 self.lblParamList.text.find("UPDATING") >= 0
                 or self.lblParamList.text.find("SEARCHING") >= 0
@@ -3104,6 +3132,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         This is called as a separate thread from displayResults to display the found parameters
         """
+        global LAST_RUN_CONTEXT
         self.txtDebugDetail.text = "displayParams"
         if _debug:
             print("displayParams started")
@@ -3126,9 +3155,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.txtParamsSusWithURL = "\n".join(sorted(self.paramSusUrl_list))
                 
                 if self.txtParamsOnly == "":
-                    self.outParamList.text = "NO PARAMETERS FOUND"
-                    self.outParamSus.text = "NO PARAMETERS FOUND"
-                    self.outParamQuery.text = "NO PARAMETERS FOUND"
+                    # If the context is Site Map Tree then there may be no results if Scope isn't set
+                    extraInfo = ''
+                    if LAST_RUN_CONTEXT == 4:
+                        extraInfo = DEFAULT_WARNING_NO_CONTENT
+                    self.outParamList.text = "NO PARAMETERS FOUND" + extraInfo
+                    self.outParamSus.text = "NO PARAMETERS FOUND" + extraInfo
+                    self.outParamQuery.text = "NO PARAMETERS FOUND" + extraInfo
                 else:
                     if self.cbShowParamOrigin.isSelected():
                         if self.cbShowSusParams.isSelected():
@@ -3256,7 +3289,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
                 # If no links were found, write that in the text box
                 if self.outLinkList.text == "":
-                    self.outLinkList.text = "NO LINKS FOUND"
+                    # If the context is Site Map Tree then there may be no results if Scope isn't set
+                    extraInfo = ''
+                    if LAST_RUN_CONTEXT == 4:
+                        extraInfo = DEFAULT_WARNING_NO_CONTENT
+                    self.outLinkList.text = "NO LINKS FOUND" + extraInfo
                 if self.countLinkUnique > 0:
                     self.cbShowLinkOrigin.setEnabled(True)
                     self.cbInScopeOnly.setEnabled(True)
@@ -3293,6 +3330,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         This is called as a separate thread from displayResults to display the found words
         """
+        global LAST_RUN_CONTEXT
         self.txtDebugDetail.text = "displayWords"
         if _debug:
             print("displayWords started")
@@ -3315,7 +3353,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.txtWordsWithURL = "\n".join(sorted(self.wordUrl_list))
                     
                     if self.txtWordsOnly == "":
-                        self.outWordList.text = "NO WORDS FOUND"
+                        # If the context is Site Map Tree then there may be no results if Scope isn't set
+                        extraInfo = ''
+                        if LAST_RUN_CONTEXT == 4:
+                            extraInfo = DEFAULT_WARNING_NO_CONTENT
+                        self.outWordList.text = "NO WORDS FOUND" + extraInfo
                     else:
                         if self.cbShowWordOrigin.isSelected():
                             self.outWordList.text = self.txtWordsWithURL
@@ -3373,7 +3415,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # Write all parameters to a file if any exist and its enabled
             self.checkIfCancel()
             if self.cbParamsEnabled.isSelected():
-                if self.outParamList.text != "NO PARAMETERS FOUND":
+                if not self.outParamList.text.startswith("NO PARAMETERS FOUND"):
                     
                     showParamOrigin = self.cbShowParamOrigin.isSelected()
                     
@@ -3464,7 +3506,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             # Write all links to a file if any exist
             self.checkIfCancel()
             if self.cbLinksEnabled.isSelected():
-                if self.outLinkList.text != "NO LINKS FOUND":
+                if not self.outLinkList.text.startswith("NO LINKS FOUND"):
 
                     showLinkOrigin = self.cbShowLinkOrigin.isSelected()
                     inScopeOnly = self.cbInScopeOnly.isSelected()
@@ -3582,7 +3624,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # Write all words to a file if any exist and its enabled
                 self.checkIfCancel()
                 if self.cbWordsEnabled.isSelected():
-                    if self.outWordList.text != "NO WORDS FOUND":
+                    if not self.outWordList.text.startswith("NO WORDS FOUND"):
 
                         showWordOrigin = self.cbShowWordOrigin.isSelected()
                         
@@ -4952,6 +4994,243 @@ class CustomKeyListener(KeyListener):
     def keyReleased(self, e=None):
         return
 
+class OutputMouseListener(MouseListener):
+    global IS_RUNNING
+    def __init__(self, text_area, identifier):
+        self.text_area = text_area
+        self.identifier = identifier
+        self.popup_menu = self.create_popup_menu()
+        
+    def create_popup_menu(self):
+        # Create a popup menu
+        popup_menu = JPopupMenu()
+        
+        # Create a "Copy" menu item
+        if self.identifier == "Param":
+            menu = "Copy paramaters"
+        elif self.identifier == "ParamQuery":
+            menu = "Copy query string"
+        elif self.identifier == "Links":
+            menu = "Copy links"
+        elif self.identifier == "Words":
+            menu = "Copy words"
+        else:
+            menu = 'Copy'
+        copy_item = JMenuItem(menu)
+        copy_item.addActionListener(self.copy_to_clipboard)
+        popup_menu.add(copy_item)
+        
+        return popup_menu
+        
+    def mouseClicked(self, event):
+        # If right mouse button pressed, and it's not still running, and it hasn't been Cancelled, or nothing found
+        if event.getButton() == MouseEvent.BUTTON3 and not IS_RUNNING and self.text_area.getText() != 'CANCELLED' and not self.text_area.getText().startswith('NO PARAMETERS FOUND') and not self.text_area.getText().startswith('NO WORDS FOUND') and not self.text_area.getText().startswith('NO LINKS FOUND'):
+            # Show the popup menu at the mouse location
+            self.popup_menu.show(event.getComponent(), event.getX(), event.getY())
+
+    def copy_to_clipboard(self, event):
+        # Get the text from the text area. If it is sus parameters, then remove the vuln type
+        firstLine = self.text_area.getText().split('\n')[0]
+        print(re.match(r'.*\s{2}\[[A-Z, ]*\]', firstLine.strip()))
+        if self.identifier == "Param" and re.match(r'.*\s{2}\[[A-Z, ]*\]', firstLine.strip()):
+            text = '\n'.join(line.split('  [')[0] for line in self.text_area.getText().split('\n'))
+        else:
+            text = self.text_area.getText()
+        
+        # Copy the text to the clipboard
+        clipboard = Toolkit.getDefaultToolkit().getSystemClipboard()
+        clipboard.setContents(StringSelection(text), None)
+
+        # Dispose the popup menu after "Copy" is selected
+        event.getSource().getParent().setVisible(False)
+        
+    def mousePressed(self, event):
+        pass
+
+    def mouseReleased(self, event):
+        pass
+
+    def mouseEntered(self, event):
+        pass
+
+    def mouseExited(self, event):
+        pass
+
+    def mouseDragged(self, event):
+        pass
+
+    def mouseMoved(self, event):
+        pass
+    
+class CheckBoxListener(ItemListener):
+    def __init__(self, lbl_requests, txt_requests, all_roots, context, is_running):
+        self.lbl_requests = lbl_requests
+        self.txt_requests = txt_requests
+        self.all_roots = all_roots
+        self.context = context
+        self.is_running = is_running
+
+    def itemStateChanged(self, event):
+        # Get the state of the checkbox (selected or deselected)
+        checkbox = event.getSource()
+        checked = checkbox.isSelected()
+
+        # Update txtRequests based on checkbox state
+        if checked:
+            # Show unique hostnames from ALL_ROOTS
+            unique_hosts = set(urlparse(url).hostname for url in self.all_roots)
+            self.txt_requests.setText('\n'.join(sorted(unique_hosts)))
+            if not self.is_running or self.context == 'Target Site Map Tree':
+                self.lbl_requests.setText("Hosts ({}): ".format(len(unique_hosts)))
+            else:
+                self.lbl_requests.setText("Hosts ({}) so far: ".format(len(unique_hosts)))
+        else:
+            # Show all URLs from ALL_ROOTS
+            self.txt_requests.setText('\n'.join(str(url) for url in self.all_roots))
+            if not self.is_running or self.context == 'Target Site Map Tree':
+                self.lbl_requests.setText("Unique targets ({}): ".format(len(self.all_roots)))
+            else:
+                self.lbl_requests.setText("Unique targets ({}) so far: ".format(len(self.all_roots)))
+
+        # Reposition at the start
+        self.txt_requests.setCaretPosition(0)
+        
+class ProgressBarMouseListener(MouseListener):
+    global LAST_RUN_CONTEXT, LAST_RUN_DATE, ALL_ROOTS, IS_RUNNING
+    
+    def mouseClicked(self, event):
+        
+        # Create a parent JFrame to be passed to the JDialog
+        parent_frame = None  # You need to set this to your parent JFrame
+
+        # Create a JDialog
+        dialog = JDialog(parent_frame, "GAP Exection Scope - " + LAST_RUN_DATE, True)  # 'True' makes the dialog modal
+        dialog.setSize(800, 600)
+        dialog.setLocationRelativeTo(None)
+        dialog.setLayout(BorderLayout())
+
+        # Create panels for different sections
+        panel_top = JPanel()
+        panel_middle = JPanel()
+        panel_bottom = JPanel()
+
+        # Create components for each section
+        if LAST_RUN_CONTEXT == 0:
+            context = 'Message Editor Request'
+        elif LAST_RUN_CONTEXT == 1:
+            context = 'Message Editor Response'
+        elif LAST_RUN_CONTEXT == 2:
+            context = 'Message Viewer Request'
+        elif LAST_RUN_CONTEXT == 3:
+            context = 'Message Viewer Response'
+        elif LAST_RUN_CONTEXT == 4:
+            context = 'Target Site Map Tree'
+        elif LAST_RUN_CONTEXT == 5:
+            context = 'Target Site Map Table'
+        elif LAST_RUN_CONTEXT == 6:
+            context = 'Proxy History'
+        elif LAST_RUN_CONTEXT == 7:
+            context = 'Scanner Results'
+        elif LAST_RUN_CONTEXT == 8:
+            context = 'Intruder Payload Positions'
+        elif LAST_RUN_CONTEXT == 9:
+            context = 'Intruder Attacker Results'
+        elif LAST_RUN_CONTEXT == 10:
+            context = 'Search Results'
+        else:
+            context = '<unknown>'
+
+        header = "Last executed from context: " + context
+        lblContext = JLabel(header)
+        lblRequests = JLabel() 
+        txtRequests = JTextArea(10, 30)
+        txtRequests.setEditable(False)
+        txtRequests.setCaretColor(txtRequests.getBackground())
+        scrRequests = JScrollPane(txtRequests)
+        
+        # Convert set elements to string and set it as the text of JTextArea
+        txtRequests.setText('\n'.join(str(url) for url in ALL_ROOTS))
+
+        # Create show host only checkbox
+        chkShowHost = JCheckBox("Show host only")
+        chkShowHost.setFocusable(False)
+        chkShowHost.setHorizontalAlignment(4)
+        chkShowHost.setSelected(True)
+        if LAST_RUN_CONTEXT == 4:
+            chkShowHost.setVisible(False)
+        else:
+            chkShowHost.setVisible(True)
+        
+        # Add an item listener to chkShowHost
+        chkShowHost.addItemListener(CheckBoxListener(lblRequests, txtRequests, ALL_ROOTS, context, IS_RUNNING))
+        
+        # Update txtRequests based on initial state of chkShowHost
+        unique_hosts = set(urlparse(url).hostname for url in ALL_ROOTS)
+        txtRequests.setText('\n'.join(sorted(unique_hosts)))
+        txtRequests.setCaretPosition(0)
+        if not IS_RUNNING or LAST_RUN_CONTEXT == 4: # Site Map
+            lblRequests.setText("Hosts ({}): ".format(len(unique_hosts)))
+        else:
+            lblRequests.setText("Hosts ({}) so far: ".format(len(unique_hosts)))
+        
+        # Create close button
+        btnClose = JButton("Close")
+        btnClose.addActionListener(lambda event: dialog.dispose())  # Dispose of the dialog when button is clicked
+        btnClose.setBackground(COLOR_BURP_ORANGE)
+        btnClose.setForeground(Color.WHITE)
+        btnClose.setFont(btnClose.getFont().deriveFont(Font.BOLD))
+        
+        # Set layout managers for panels
+        panel_top.setLayout(GridLayout(2, 1))
+        panel_middle.setLayout(GridLayout(1, 1)) 
+        panel_bottom.setLayout(FlowLayout(FlowLayout.RIGHT))
+        
+        # Add empty borders to panels
+        panel_top.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10))
+        panel_middle.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 10))
+        panel_bottom.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10))
+        
+        # Add components to panels
+        panel_top.add(lblContext)
+        panel_top.add(chkShowHost)
+        panel_top.add(lblRequests)
+        panel_middle.add(scrRequests)
+        panel_bottom.add(btnClose)
+
+        # Add panels to dialog
+        dialog.add(panel_top, BorderLayout.NORTH)
+        dialog.add(panel_middle, BorderLayout.CENTER)
+        dialog.add(panel_bottom, BorderLayout.SOUTH)
+        
+        # Try to set the icon of the displayed pane
+        try:
+            imageUrl = URL(HELP_ICON)
+            img = ImageIcon(imageUrl)
+            dialog.setIconImage(img.getImage())
+        except Exception as e:
+            pass
+        
+        # Set the dialog visibility
+        dialog.setVisible(True)
+
+    def mousePressed(self, event):
+        pass
+
+    def mouseReleased(self, event):
+        pass
+
+    def mouseEntered(self, event):
+        pass
+
+    def mouseExited(self, event):
+        pass
+
+    def mouseDragged(self, event):
+        pass
+
+    def mouseMoved(self, event):
+        pass
+    
 class CustomIssue(IScanIssue):
     """
     A Class used to create a custom issue in Burp 
