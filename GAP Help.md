@@ -122,7 +122,7 @@ Below is an explanation of the output given when GAP has completed running. When
 <ul>
 <li><b>Potential parameters found</b> - This text are will show all unique potential parameters, one per line.</li>
 <li><b>Show origin</b> - If this feature is ticked, the potential parameter will be followed by the HTTP request endpoint (in square brackets) that the parameter was found in. A parameter could have been found in more than one request, so this view can show duplicate links, one per origin endpoint.</li>
-<li><b>Show "sus"</b> - If this feature is ticked, only potential parameters that are "sus" are shown followed by the associated vulnerability type(s) (in square brackets). <b>NOTE: If you right click and select <code>Copy</code> you will have the parameter names WITHOUT the vuln types copied to your clipboard.</b>></li>
+<li><b>Show "sus"</b> - If this feature is ticked, only potential parameters that are "sus" are shown followed by the associated vulnerability type(s) (in square brackets). <b>NOTE: If you right click and select <code>Copy</code> you will have the parameter names WITHOUT the vuln types copied to your clipboard.</b></li>
 <li><b>Show query string with value</b> - This checkbox can be used to switch between the list of parameters and a concatenated query string with all parameters with a value given in the following text box.</li>
 <li><b>Param Value</b> - This defaults to XNLV and is a value that is used to create the concatenated query string, with each parameter given this value followed by a unique number of the parameter. This query string can be used to manually append to a URL and check for reflections.</li>
 </ul>
@@ -140,6 +140,10 @@ The filter is something that is applied after GAP has run. It allows you to look
 An additional feature of GAP is to automatically include links of valid <code>.js.map</code> (javascript source map) files. These are identified by responses that contain the <code>//# sourceMappingURL</code> line, or have a HTTP header of <code>SourceMap</code> or <code>X-SourceMap</code>.<br>
 <br>
 To find links, a complex regex is used to look for different formats and contexts for potential links and files. This regex was initially based on the one used in <b>Link Finder</b> by Gerben Javado, but has been evolved to try and identify more with minimal false positives.<br>
+<br>
+If you have the <b>Show origin endpoint</b> options unchecked and the <b>In scope only</b> option checked, then when you right click the pane, you will get another menu option of <b>Request all prefixed URLs and send to Site Map</b>. Clicking this will request all URLs shown in the current pane (so can be filtered with <b>Link filter</b> too) and make a <code>GET</code> request for each URL. The URLs will be requested in 2 separate threads, with 10 milliseconds between each request, and they will be added to the <b>Site Map</b>.<br>
+<b>NOTE: Sometimes java errors can be written to the extensions Error tab if a hoist is unreachable. There doesn't seem to be a way to catch these, but they can be safely ignored.</b><br>
+When requests are being made, you can right click on the pane and select the <b>Cancel all requests being made</b> menu item to stop all requests previously scheduled.<br>
 <h2>Words</h2>
 <ul>
 <li><b>Words found</b> - This text are will show all unique words, one per line.</li>

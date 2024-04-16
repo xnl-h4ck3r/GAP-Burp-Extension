@@ -1,5 +1,21 @@
 ## Changelog
 
+- v5.0
+
+  - New
+
+    - You can right click on the Potential Links found list, and if `Show origin endpoint` is unchecked and `In scope only` is checked, you can select `Request all prefixed URLs and send to Site Map`. This will request all URLs shown in the current pane (so can be filtered with `Link filter` too) and make a GET request for each URL. The URLs will be requested in 2 separate threads, with 10 milliseconds between each request, and they will be added to the Site Map.
+    - When requests are being made, you can right click on the Potential Links found list and select the `Cancel all requests being made` menu item to stop all requests previously scheduled.
+    - If a link found ends with a `.` or `|`, then they will be removed.
+    - If a link found has literal `\n` or `\r` in it, then it will be stripped from the first occurrence.
+    - When checking if a link is valid, check if it has a host and it is a valid host. This will remove false positives like `alert(e.which)` for example.
+
+  - Changed
+
+    - Change code that looked for a closed bracket without an open one, for better code that checks for unbalanced brackets, and strips from the unbalanced closing bracket.
+    - Change `getResponseLinks` to prevent runtime errors happening when the link gets set to blank.
+    - Remove a print statement accidentally left in when copying to the clipboard.
+
 - v4.9
 
   - New
