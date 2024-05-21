@@ -38,6 +38,7 @@ When the GAP Mode of Parameters is selected then GAP will try to find as many po
 <ul>
 <li><b>Include URL path words?</b> - The words in the response URL path are included as potential parameters if the URL is in scope.</li>
 <li><b>Report "sus" parameters?</b> - If a "sus" parameter is identified, a Burp custom Issue will be raised (unavailable in Burp Community Edition). There will be no markers in the Request/Response of the Issue showing where the named parameter can be found because including this functionality seriously increases the time GAP can take to run, so this is not a feature at the moment. For Burp Community Edition, the details of the parameter will be written to the extension output.</b></li>
+<li><b>Inc. Tentative?</b> - If a "sus" parameter is identified, the <b>Report "sus" parameters</b> option is checked, and the confidence is <b>Tentative</b>, this option determines whether it is raised or not.</li>
 </ul>
 
 <h2>Request Parameters</h2>

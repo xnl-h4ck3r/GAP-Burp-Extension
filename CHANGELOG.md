@@ -1,5 +1,17 @@
 ## Changelog
 
+- v5.1
+
+  - New
+
+    - When the `RESPONSE PARAMETERS` option of `Javascript variables and constants` is selected, GAP will now extract parameter names from nested objects too.
+    - Add `Inc. Tentaive?` option next to `Report "sus"params?` option. Findings marked `Tentative` will only be raised if this option is checked. If disabled it will speed up processing.
+
+  - Changed
+
+    - Move the check for Sus param checkbox being checked to the start of `checkSusParams` instead of half way through, to help speed things up.
+    - Change regex `REGEX_PARAMSPOSSIBLE` and `REGEX_PARAMSSUB` to check for HTML entities with the `&` as optional, as sometimes they appear without. This ensures they are replaced more effectively.
+
 - v5.0
 
   - New

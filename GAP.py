@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.0"
+VERSION="5.1"
 
 _debug = False
 
@@ -266,11 +266,13 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_PARAMKEYS = re.compile(r"(?<=\?|&)[^\=\&\n].*?(?=\=|&|\n)")
         
         # Regex for parameters
-        self.REGEX_PARAMSPOSSIBLE = re.compile(r"(?<=[^\&|%26|\&amp;|\&#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|\x26])(\?|%3f|\&#0?63;|\u003f|\\u003f|\\\\u003f|\&|%26|\&amp;|\&#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\\x3d|\&quot;|\&#0?34;|\u0022|\\u0022|\\\\u0022|\&#0?39;)[a-z0-9_\-]{3,}(\=|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\x3d|\\x3d)(?=[^\=|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\x3d|\\x3d])", re.IGNORECASE)
-        self.REGEX_PARAMSSUB = re.compile(r"\?|%3f|\&#0?63;|\u003f|\\u003f|\\\\u003f|\=|%3d|\&#0?61;|\u003d|\\u003d|\\\\u003d|\\x3d|\x3d|%26|\&amp;|\&#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|\x26|\&quot;|\&#0?34;|\u0022|\\u0022|\\\\u0022|\\x22|\x22|\&#0?39;", re.IGNORECASE)
+        self.REGEX_PARAMSPOSSIBLE = re.compile(r"(?<=[^\&|%26|\&amp;|\&?#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|\x26])(\?|%3f|\&?#0?63;|\u003f|\\u003f|\\\\u003f|\&|%26|\&amp;|\&?#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|%3d|\&?#0?61;|\u003d|\\u003d|\\\\u003d|\\x3d|\&quot;|\&?#0?34;|\u0022|\\u0022|\\\\u0022|\&#0?39;)[a-z0-9_\-]{3,}(\=|%3d|\&?#0?61;|\u003d|\\u003d|\\\\u003d|\x3d|\\x3d)(?=[^\=|%3d|\&?#0?61;|\u003d|\\u003d|\\\\u003d|\x3d|\\x3d])", re.IGNORECASE)
+        self.REGEX_PARAMSSUB = re.compile(r"\?|%3f|\&?#0?63;|\u003f|\\u003f|\\\\u003f|\=|%3d|\&?#0?61;|\u003d|\\u003d|\\\\u003d|\\x3d|\x3d|%26|\&amp;|\&?#0?38;|\u0026|\\u0026|\\\\u0026|\\x26|\x26|\&quot;|\&?#0?34;|\u0022|\\u0022|\\\\u0022|\\x22|\x22|\&?#0?39;", re.IGNORECASE)
         self.REGEX_JSLET = re.compile(r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))")
         self.REGEX_JSVAR = re.compile(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))")
         self.REGEX_JSCONSTS = re.compile(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))")
+        self.REGEX_JSNESTED = re.compile(r"(?s)(^|\s)(var|let|const)\s+[\$A-Za-z0-9-_\[\]]+\s*=\s*\{")
+        self.REGEX_JSNESTEDPARAM = re.compile(r"\s*('|\"|\[])?[A-Za-z0-9-_\.]+('|\"|\])?\s*\:")
         
         # Regex for Request parameters
         self.REGEX_PARAMSJSON = re.compile(r"{\"[^\}]+}")
@@ -341,6 +343,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbParamJSVars.setToolTipText("Javascript variables set with 'var', 'let' or 'const' are retrieved.")
             self.cbParamFromLinks.setToolTipText("Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope,\nor there is just a path and no way of determining if it is in scope.")
             self.cbReportSusParams.setToolTipText("If a 'sus' parameter is identified, a Burp custom Issue will be raised (unavailable in Burp Community Edition).\nThere will be no markers in the Request/Response of the Issue showing where the named parameter can be found because including this functionality\nseriously increases the time GAP can take to run, so this is not a feature at the moment.\nFor Burp Community Edition, the details of the parameter will be written to the extension output.")
+            self.cbIncludeTentative.setToolTipText("If 'sus' parameters are being reported, this determines if 'Tentative' findings are raised or ingnored.")
             self.cbWordLower.setToolTipText("Any word found that contains an uppercase letter will also be added as an all lowercase word.")
             self.cbWordPlurals.setToolTipText("If checked, then for each word found, a suitable singular or plural version will also be added to the output.")
             self.cbWordPaths.setToolTipText("Any path words in selected links will be added as words.")
@@ -396,6 +399,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbParamJSVars.setToolTipText("")
             self.cbParamFromLinks.setToolTipText("")
             self.cbReportSusParams.setToolTipText("")
+            self.cbIncludeTentative.setToolTipText("")
             self.cbWordLower.setToolTipText("")
             self.cbWordPlurals.setToolTipText("")
             self.cbWordPaths.setToolTipText("")
@@ -604,7 +608,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbToolTips.addItemListener(self.cbToolTips_clicked)
         self.cbToolTips.setForeground(COLOR_BURP_ORANGE)
         
-        self.cbReportSusParams = self.defineCheckBox("Report \"sus\" parameters?", True)
+        self.cbReportSusParams = self.defineCheckBox("Report \"sus\" params?", True)
+        self.cbReportSusParams.addItemListener(self.cbReportSusParams_clicked)
+        self.cbIncludeTentative = self.defineCheckBox("Inc. Tentative?", True)
         self.cbIncludePathWords = self.defineCheckBox("Include URL path words?", False)
         self.cbSiteMapEndpoints = self.defineCheckBox("Include site map endpoints?", False)
         self.cbRelativeLinks = self.defineCheckBox("Include relative links?")
@@ -844,7 +850,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         )
                         .addGroup(
                             layout.createParallelGroup()
-                            .addComponent(self.cbReportSusParams)
+                            .addGroup(
+                                layout.createSequentialGroup()
+                                .addComponent(self.cbReportSusParams)
+                                .addComponent(self.cbIncludeTentative)
+                            )
                             .addComponent(self.lblResponseParams)
                             .addComponent(self.cbParamJSONResponse)
                             .addComponent(self.cbParamXMLResponse)
@@ -1033,7 +1043,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         )
                         .addGroup(
                             layout.createSequentialGroup()
-                            .addComponent(self.cbReportSusParams)
+                            .addGroup(
+                                layout.createParallelGroup()
+                                .addComponent(self.cbReportSusParams)
+                                .addComponent(self.cbIncludeTentative)
+                            )
                             .addComponent(self.lblResponseParams)
                             .addComponent(self.cbParamJSONResponse)
                             .addComponent(self.cbParamXMLResponse)
@@ -1663,6 +1677,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.cbParamXmlAttr.setEnabled(enabled)
             self.inQueryStringVal.setEnabled(enabled)
             self.cbReportSusParams.setEnabled(enabled)
+            if self.cbReportSusParams.isSelected():
+                self.cbIncludeTentative.setEnabled(enabled)
+            else:
+                self.cbIncludeTentative.setEnabled(False)
             self.cbIncludePathWords.setEnabled(enabled)
             self.lblResponseParams.setEnabled(enabled)
             self.cbParamJSONResponse.setEnabled(enabled)
@@ -1919,7 +1937,18 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         else:
             if not self.cbLinkPrefix.isSelected():
                 self.cbUnPrefixed.setEnabled(False)
-            
+    
+    def cbReportSusParams_clicked(self, e=None):
+        """
+        The event called when the "Report "sus" params" checkbox is changed
+        """
+        self.setTabDefaultColor()
+        # Only enable the "Inc. Tenttive?" field if the "Report "sus" params" checkbox is selected
+        if self.cbReportSusParams.isSelected():
+            self.cbIncludeTentative.setEnabled(True)
+        else:
+            self.cbIncludeTentative.setEnabled(False)
+                
     def checkLinkPrefix(self, e=None):
         """
         Check the Link Prefix is a valid URL
@@ -2013,6 +2042,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 "paramXml": self.cbParamXml.isSelected(),
                 "paramXmlAttr": self.cbParamXmlAttr.isSelected(),
                 "reportSusParams": self.cbReportSusParams.isSelected(),
+                "includeTentative": self.cbIncludeTentative.isSelected(),
                 "includePathWords": self.cbIncludePathWords.isSelected(),
                 "paramJsonResponse": self.cbParamJSONResponse.isSelected(),
                 "paramXmlResponse": self.cbParamXMLResponse.isSelected(),
@@ -2102,6 +2132,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self.cbReportSusParams.setSelected(config["reportSusParams"])
                 except:
                     self.cbReportSusParams.setSelected(True)
+                try:
+                    self.cbIncludeTentative.setSelected(config["includeTentative"])
+                except:
+                    self.cbIncludeTentative.setSelected(True)
                 try:
                     self.cbIncludePathWords.setSelected(config["includePathWords"])
                 except:
@@ -2290,6 +2324,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.cbShowQueryString.setSelected(False)
         self.inQueryStringVal.text = DEFAULT_QSV
         self.cbReportSusParams.setSelected(True)
+        self.cbIncludeTentative.setSelected(True)
         self.cbIncludePathWords.setSelected(False)
         self.cbParamJSVars.setSelected(False)
         self.inSaveDir.text = self.getDefaultSaveDirectory()
@@ -3738,7 +3773,52 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             if not self.flagCANCEL:
                 self._stderr.println("getRequestParams 1")
                 self._stderr.println(e)
-                
+
+    def find_balanced_braces(self, text, start):
+        try:
+            end = len(text)
+            stack = []
+            i = text.find('{', start)
+            if i == -1:
+                return None, start
+            while i < len(text):
+                self.checkIfCancel()
+                if text[i] == '{':
+                    stack.append('{')
+                elif text[i] == '}':
+                    stack.pop()
+                    if not stack:
+                        end = i + 1
+                        break
+                i += 1
+            return text[start:end], end
+        except Exception as e:
+            if not self.flagCANCEL:
+                self._stderr.println("find_balanced_braces 1")
+                self._stderr.println(e)
+    
+    def process_json_string(self, jsonString):
+        try:
+            jsonString = jsonString
+            js_params = self.REGEX_JSNESTEDPARAM.finditer(jsonString)
+            for param in js_params:
+                self.checkIfCancel()
+                if param and param.group():
+                    parameter = param.group().strip()
+                    parameter = parameter.rstrip(':')
+                    parameter = parameter.replace('\'', '').replace('"', '')
+                    parameter = parameter.replace('[', '').replace(']', '')
+                    self.addParameter(parameter, "Tentative", "RESPONSE")
+        except Exception as e:
+            if not self.flagCANCEL:
+                self._stderr.println("process_json_string 1")
+                self._stderr.println(e)
+    
+    def ensure_unicode(self, text):
+        if isinstance(text, bytes):
+            return text.decode('utf-8')
+        return text
+                     
     def getResponseParams(self):
         """
         Get XML and JSON responses, extract keys and add them to the paramUrl_list
@@ -3783,8 +3863,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self._stderr.println(e)
                 
                 # If any of the options were picked, then carry on
-                if (self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected() or self.cbParamJSVars.isSelected()):     
-                                    
+                if (self.cbParamJSONResponse.isSelected() or self.cbParamXMLResponse.isSelected() or self.cbParamInputField.isSelected() or self.cbParamJSVars.isSelected()):    
+                     
                     # Get regardless of the content type
                     # Javascript variable could be in the html, script and even JSON response within a .js.map file
                     if self.cbParamJSVars.isSelected():
@@ -3820,6 +3900,25 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                     self.addParameter(key.group().strip(), "Tentative", "RESPONSE")
                         except Exception as e:
                             self._stderr.println("getResponseParams 3")
+                            self._stderr.println(e)
+                            
+                        # Get parameters from nested objects
+                        try:
+                            start = 0
+                            text = body.encode('ascii', 'replace').decode('ascii')
+                            while start < len(text):
+                                match = self.REGEX_JSNESTED.search(text, start)
+                                if not match:
+                                    break
+                                full_string, end = self.find_balanced_braces(text, match.start())
+                                if full_string:
+                                    full_string = self.ensure_unicode(full_string)
+                                    self.process_json_string(full_string)
+                                if start == end:
+                                    break
+                                start = end
+                        except Exception as e:
+                            self._stderr.println("getResponseParams 4")
                             self._stderr.println(e)
 
                     # If mime type is JSON then get the JSON attributes
@@ -4613,89 +4712,92 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         """
         self.txtDebugDetail.text = "checkSusParams: "+param
         try:
-            # Only check if the parameter is less than 20 characters long and contains nothing other than 
-            # letters, numbers, dash and under score
-            if len(param) < 20 and self.REGEX_SUSPARAM.search(param):
-                
-                origin = self.currentReqResp.getRequestUrl()
-                
-                # Determine the vulns the param is for
-                vulnTypes, minVulnTypes = self.getSusVulnTypes(param)
-
-                # If a sus parameter was found...
-                if not self.flagCANCEL and vulnTypes != '':
+            # If the report sus param option is checked then report as issue and write to extension output
+            if self.cbReportSusParams.isSelected():
             
-                    self.paramSus_list.add(param + "  [" + minVulnTypes + "]")
-                    self.paramSusUrl_list.add(param + "  [" + origin + "]")
+                # If the finding is Tentative, only continue if required to raise
+                if confidence != 'Tentative' or (confidence == 'Tentative' and self.cbIncludeTentative.isSelected()):
                     
-                    # If the report sus param option is checked then report as issue and write to extension output
-                    if self.cbReportSusParams.isSelected():
+                    # Only check if the parameter is less than 20 characters long and contains nothing other than 
+                    # letters, numbers, dash and under score
+                    if len(param) < 20 and self.REGEX_SUSPARAM.search(param):
                         
-                        # Create issue if NOT Burp Communiyty Edition
-                        if not self.isBurpCommunity:
-                            try:
-                                createIssue = True
-                                
-                                # Determine the context detail and whether to create the issue
-                                paramIssue = param+":"+origin
-                                if context == "BURP":
-                                    contextDetail = "The parameter was identified in the Request by Burp and reported by GAP.<br><br>"
-                                elif context == "REQUEST":
-                                    contextDetail = "The parameter was identified in the Request by GAP.<br><br>"
-                                    self.susParamIssue.add(paramIssue)
-                                elif context == "RESPONSE":
-                                    contextDetail = "The potential parameter was identified in the Response by GAP.<br><br>"
-                                    self.susParamIssue.add(paramIssue)
-                                elif context == "PATH":
-                                    contextDetail = "The potential parameter was identified by GAP because the <b><i>Include URL path words</i></b> option was selected.<br><br>"
-                                    if paramIssue not in self.susParamIssue:
+                        origin = self.currentReqResp.getRequestUrl()
+                        
+                        # Determine the vulns the param is for
+                        vulnTypes, minVulnTypes = self.getSusVulnTypes(param)
+
+                        # If a sus parameter was found...
+                        if not self.flagCANCEL and vulnTypes != '':
+                    
+                            self.paramSus_list.add(param + "  [" + minVulnTypes + "]")
+                            self.paramSusUrl_list.add(param + "  [" + origin + "]")
+                            
+                            # Create issue if NOT Burp Communiyty Edition
+                            if not self.isBurpCommunity:
+                                try:
+                                    createIssue = True
+                                    
+                                    # Determine the context detail and whether to create the issue
+                                    paramIssue = param+":"+origin
+                                    if context == "BURP":
+                                        contextDetail = "The parameter was identified in the Request by Burp and reported by GAP.<br><br>"
+                                    elif context == "REQUEST":
+                                        contextDetail = "The parameter was identified in the Request by GAP.<br><br>"
                                         self.susParamIssue.add(paramIssue)
-                                    else:
-                                        createIssue = False
-                                elif context == "RESPLINKS":
-                                    contextDetail = "The potential parameter was identified by GAP because the <b><i>Params from links found</i></b> option was selected.<br><br>"
-                                    if paramIssue not in self.susParamIssue:
+                                    elif context == "RESPONSE":
+                                        contextDetail = "The potential parameter was identified in the Response by GAP.<br><br>"
                                         self.susParamIssue.add(paramIssue)
+                                    elif context == "PATH":
+                                        contextDetail = "The potential parameter was identified by GAP because the <b><i>Include URL path words</i></b> option was selected.<br><br>"
+                                        if paramIssue not in self.susParamIssue:
+                                            self.susParamIssue.add(paramIssue)
+                                        else:
+                                            createIssue = False
+                                    elif context == "RESPLINKS":
+                                        contextDetail = "The potential parameter was identified by GAP because the <b><i>Params from links found</i></b> option was selected.<br><br>"
+                                        if paramIssue not in self.susParamIssue:
+                                            self.susParamIssue.add(paramIssue)
+                                        else:
+                                            createIssue = False
                                     else:
-                                        createIssue = False
-                                else:
-                                    contextDetail = "<br>"
-                                
-                                detail = 'The parameter <b>' + param + '</b> was found. This parameter is worthy of further investigation as it is often associated with the following vulnerability type(s): <b>' + vulnTypes + '</b><br>' + contextDetail
-                                
-                                # Look for matches of the parameter string
-                                #matchesReq = self.getMatches(self.currentReqResp.getRequest(), param)
-                                #matchesResp = self.getMatches(self.currentReqResp.getResponse(), param)
-                                
-                                # Create a scan issue
-                                httpmessage = self.currentReqResp.getMessage()
-                                if createIssue:
-                                    self.createIssue(
-                                        #http_message = self._callbacks.applyMarkers(httpmessage, matchesReq, matchesResp),
-                                        http_message = httpmessage,
-                                        issue_detail=detail,
-                                        confidence=confidence,
-                                    )
-                                
-                            except Exception as e:
-                                if _debug:
-                                    self._stderr.println("checkSusParams 2")
+                                        contextDetail = "<br>"
+                                    
+                                    detail = 'The parameter <b>' + param + '</b> was found. This parameter is worthy of further investigation as it is often associated with the following vulnerability type(s): <b>' + vulnTypes + '</b><br>' + contextDetail
+                                    
+                                    # Look for matches of the parameter string
+                                    #matchesReq = self.getMatches(self.currentReqResp.getRequest(), param)
+                                    #matchesResp = self.getMatches(self.currentReqResp.getResponse(), param)
+                                    
+                                    # Create a scan issue
+                                    httpmessage = self.currentReqResp.getMessage()
+                                    if createIssue:
+                                        self.createIssue(
+                                            #http_message = self._callbacks.applyMarkers(httpmessage, matchesReq, matchesResp),
+                                            http_message = httpmessage,
+                                            issue_detail=detail,
+                                            confidence=confidence,
+                                        )
+                                    
+                                except Exception as e:
+                                    if _debug:
+                                        self._stderr.println("checkSusParams 2")
+                                        self._stderr.println(str(e))
+                                    # If an error occurred, we cannot raise Issues in Burp so assume Community Edition
+                                    self.isBurpCommunity = True
+                                    pass
+                            
+                            # If Burp Community Edition then write the issue to the extension output if it hasn't been output already
+                            if self.isBurpCommunity:
+                                try:
+                                    detail = "Sus Parameter (" + minVulnTypes + "): " + param + "  [" + origin.split("?",1)[0] + "]"
+                                    if detail not in self.susParamText:
+                                        self.susParamText.add(detail)
+                                        print(detail)
+                                except Exception as e:
+                                    self._stderr.println("checkSusParams 3")
                                     self._stderr.println(str(e))
-                                # If an error occurred, we cannot raise Issues in Burp so assume Community Edition
-                                self.isBurpCommunity = True
-                                pass
-                        
-                        # If Burp Community Edition then write the issue to the extension output if it hasn't been output already
-                        if self.isBurpCommunity:
-                            try:
-                                detail = "Sus Parameter (" + minVulnTypes + "): " + param + "  [" + origin.split("?",1)[0] + "]"
-                                if detail not in self.susParamText:
-                                    self.susParamText.add(detail)
-                                    print(detail)
-                            except Exception as e:
-                                self._stderr.println("checkSusParams 3")
-                                self._stderr.println(str(e))
-            
+        
         except Exception as e:
             self._stderr.println("checkSusParams 1")
             self._stderr.println(str(e))

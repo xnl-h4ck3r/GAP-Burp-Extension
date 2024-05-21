@@ -1,6 +1,6 @@
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/title.png"></center>
 
-## About - v5.0
+## About - v5.1
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on, and produces a target specific wordlist to use for fuzzing.
 The full Help documentation can be found [here](https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
@@ -52,7 +52,6 @@ Below is an in-depth look at the GAP Burp extension, from installing it successf
 ## TODO
 
 - Get potential parameters from the Request that Burp doesn't identify itself, e.g. XML, graphql, etc.
-- Add an option to not add the `Tentaive` Issues, e.g. Parameters that were found in the Response (but not as query parameters in links found).
 - Improve performance of the link finding regular expressions.
 - Include the Request/Response markers in the raised Sus parameter Issues if I can find a way to not make performance really bad!
 - Deal with other size displays and font sizes better to make sure all controls are viewable.
