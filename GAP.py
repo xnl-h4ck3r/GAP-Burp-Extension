@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.1"
+VERSION="5.2"
 
 _debug = False
 
@@ -271,7 +271,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_JSLET = re.compile(r"(?<=let[\s])[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*[\s]*(?=(\=|;|\n|\r))")
         self.REGEX_JSVAR = re.compile(r"(?<=var\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))")
         self.REGEX_JSCONSTS = re.compile(r"(?<=const\s)[\s]*[a-zA-Z$_][a-zA-Z0-9$_]*?(?=(\s|=|,|;|\n))")
-        self.REGEX_JSNESTED = re.compile(r"(?s)(^|\s)(var|let|const)\s+[\$A-Za-z0-9-_\[\]]+\s*=\s*\{")
+        self.REGEX_JSNESTED = re.compile(r"(?s)(^|\s?)(dataLayer\.push\(|(var|let|const)\s+[\$A-Za-z0-9-_\[\]]+\s*=)\s*\{")
         self.REGEX_JSNESTEDPARAM = re.compile(r"\s*('|\"|\[])?[A-Za-z0-9-_\.]+('|\"|\])?\s*\:")
         
         # Regex for Request parameters
@@ -4711,28 +4711,28 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         Create a Burp Issue for a suspect paramater, and also write to the extension output
         """
         self.txtDebugDetail.text = "checkSusParams: "+param
-        try:
-            # If the report sus param option is checked then report as issue and write to extension output
-            if self.cbReportSusParams.isSelected():
-            
-                # If the finding is Tentative, only continue if required to raise
-                if confidence != 'Tentative' or (confidence == 'Tentative' and self.cbIncludeTentative.isSelected()):
-                    
-                    # Only check if the parameter is less than 20 characters long and contains nothing other than 
-                    # letters, numbers, dash and under score
-                    if len(param) < 20 and self.REGEX_SUSPARAM.search(param):
-                        
-                        origin = self.currentReqResp.getRequestUrl()
-                        
-                        # Determine the vulns the param is for
-                        vulnTypes, minVulnTypes = self.getSusVulnTypes(param)
+        try:            
+            # Only check if the parameter is less than 20 characters long and contains nothing other than 
+            # letters, numbers, dash and under score
+            if len(param) < 20 and self.REGEX_SUSPARAM.search(param):
+                
+                origin = self.currentReqResp.getRequestUrl()
+                
+                # Determine the vulns the param is for
+                vulnTypes, minVulnTypes = self.getSusVulnTypes(param)
 
-                        # If a sus parameter was found...
-                        if not self.flagCANCEL and vulnTypes != '':
+                # If a sus parameter was found...
+                if not self.flagCANCEL and vulnTypes != '':
+            
+                    self.paramSus_list.add(param + "  [" + minVulnTypes + "]")
+                    self.paramSusUrl_list.add(param + "  [" + origin + "]")
                     
-                            self.paramSus_list.add(param + "  [" + minVulnTypes + "]")
-                            self.paramSusUrl_list.add(param + "  [" + origin + "]")
-                            
+                    # If the report sus param option is checked then report as issue and write to extension output
+                    if self.cbReportSusParams.isSelected():
+                        
+                        # If the finding is Tentative, only continue if required to raise
+                        if confidence != 'Tentative' or (confidence == 'Tentative' and self.cbIncludeTentative.isSelected()):
+                
                             # Create issue if NOT Burp Communiyty Edition
                             if not self.isBurpCommunity:
                                 try:
