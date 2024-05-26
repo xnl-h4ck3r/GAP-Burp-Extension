@@ -1,5 +1,11 @@
 ## Changelog
 
+- v5.3
+
+  - Changed
+
+    - Change `REGEX_JSNESTED` (used by the `Javascript variables and constants` option) to also get params from nested objects that start with `JSON.stringify(`.
+
 - v5.2
 
   - Changed
