@@ -1,6 +1,6 @@
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/title.png"></center>
 
-## About - v5.4
+## About - v5.5
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on, and produces a target specific wordlist to use for fuzzing.
 The full Help documentation can be found [here](https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
@@ -9,11 +9,11 @@ The full Help documentation can be found [here](https://github.com/xnl-h4ck3r/bu
 
 ### Installation
 
-1. Visit [Jython Offical Site](https://www.jython.org/download), and download the latest stand alone JAR file, e.g. `jython-standalone-2.7.3.jar`.
+1. Visit [Jython Offical Site](https://www.jython.org/download), and download the latest stand alone JAR file, e.g. `jython-standalone-2.7.4.jar`.
 2. Open Burp, go to **Extensions** -> **Extension Settings** -> **Python Environment**, set the **Location of Jython standalone JAR file** and **Folder for loading modules** to the directory where the Jython JAR file was saved.
-3. On a command line, go to the directory where the jar file is and run `java -jar jython-standalone-2.7.3.jar -m ensurepip`.
+3. On a command line, go to the directory where the jar file is and run `java -jar jython-standalone-2.7.4.jar -m ensurepip`.
 4. Download the `GAP.py` and `requirements.txt` from this project and place in the same directory.
-5. Install Jython modules by running `java -jar jython-standalone-2.7.3.jar -m pip install -r requirements.txt`.
+5. Install Jython modules by running `java -jar jython-standalone-2.7.4.jar -m pip install --no-cache-dir --no-compile -r requirements.txt`.
 6. Go to the **Extensions** -> **Installed** and click **Add** under **Burp Extensions**.
 7. Select **Extension type** of **Python** and select the **GAP.py** file.
 

@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.4"
+VERSION="5.5"
 
 _debug = False
 
@@ -57,6 +57,11 @@ try:
     import pstats
 except:
     pass
+try:
+    import tldextract
+    tldextractImported = True
+except:
+    tldextractImported = False
 
 WORDLIST_IMPORT_ERROR = ""
 try:
@@ -76,6 +81,13 @@ try:
     import html5lib
 except Exception as e:
     html5libInstalled = False
+
+# Common domain TLDS
+COMMON_TLDS = ['com', 'de', 'net', 'org', 'uk', 'cn', 'ga', 'nl', 'cf', 'ml', 
+               'tk', 'ru', 'br', 'gq', 'xyz', 'fr', 'eu', 'info', 'co', 'au',  
+               'ca', 'it', 'in', 'ch', 'pl', 'es', 'online', 'us', 'top', 'jp',  
+               'biz', 'se', 'at', 'dk', 'cz', 'za', 'me', 'ir', 'icu', 'shop',  
+               'kr', 'site', 'mx', 'hu', 'io', 'cc', 'club', 'no', 'cyou', 'store']
 
 # Sus Parameters from @jhaddix and @G0LDEN_infosec
 SUS_CMDI = ['execute','dir','daemon','cli','log','cmd','download','ip','upload']
@@ -231,6 +243,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Compile the link regex
         self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-\.]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')", re.IGNORECASE)
         
+        # Compile the extra links regex
+        self.REGEX_LINKS_EXTRA = re.compile(r"(?:[a-zA-Z0-9_-]+\.){0,5}[a-zA-Z0-9_-]+\.[a-zA-Z]{2,24}(?:(\/|\?)[^\s\"'<>()\[\]{}]*)?", re.IGNORECASE)
+        
         # Regex for checking Burp url when checking if in scope
         self.REGEX_BURPURL = re.compile(r"^(https?:)?\/\/([-a-zA-Z0-9_]+\.)?[-a-zA-Z0-9_]+\.[-a-zA-Z0-9_\.\?\#\&\=]+$", re.IGNORECASE)
         
@@ -322,9 +337,15 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         
         try:
             if not html5libInstalled:
-                print("WARNING: Could not import html5lib for more accurate parsing of words by beatifulsoup4 library.")
+                print("WARNING: Could not import html5lib for more accurate parsing of words by beatifulsoup4 library. See Installation instructions on Github README.")
         except:
             pass
+        try:
+            if not tldextractImported:
+                print("WARNING: Could not import tldextract to help find more links. See Installation instructions on Github README.")
+        except:
+            pass
+        
     
     def setContextHelp(self, enable):
         if enable:
@@ -4009,9 +4030,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # - has character non printable ascii characters in it
         # - starts with /=
         # - starts with application/, image/, model/, video/, audio/ or text/ as this is a content-type that can sometimes be confused for links
+        # - starts with a -
         try:
             if include:
-                if link.count("\n") > 1 or link.startswith("#") or link.startswith("$") or link.startswith("\\") or link.startswith("/="):
+                if link.count("\n") > 1 or link.startswith("#") or link.startswith("$") or link.startswith("\\") or link.startswith("/=") or link.startswith("-"):
                     include = False
                 if include:
                     include = not (bool(re.search(r"\s", link)))
@@ -4135,10 +4157,29 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 return match.group(1)
             else:
                 return link
+        except RuntimeError as e:
+            # Check if the error message matches the specific recursion depth issue
+            if "maximum recursion depth exceeded" in str(e):
+                return link
+            else:
+                raise  # If it's another RuntimeError, let it propagate
         except Exception as e:
-            self._stderr.println("ERROR stripLinkFromUnbalancedBrackets 1")
+            self._stderr.println("ERROR stripLinkFromUnbalancedBrackets 1: " + link)
             self._stderr.println(e)
+            return ""
     
+    def clean_body(self, body):
+        try:
+            pattern = r"eyJ[a-zA-Z0-9\+\/]+(?:=|\b|\n)"
+            def conditional_remove(match):
+                return "BASE64_REPLACED_BY_GAP" if len(match.group(0)) > 10000 else match.group(0)
+            # Remove matches
+            cleaned_body = re.sub(pattern, conditional_remove, body)
+            return cleaned_body
+        except Exception as e:
+            self._stderr.println("ERROR truncate_long_lines 1")
+            self._stderr.println(e)
+            
     def getResponseLinks(self):
         """
         Get a list of links found
@@ -4156,6 +4197,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             
             # Some URLs may be displayed in the body within strings that have different encodings of / and : so replace these
             body = self.currentReqResp.getResponseBody()
+            body = self.clean_body(body)
             body = self.REGEX_LINKSSLASH.sub("/", body)
             body = self.REGEX_LINKSCOLON.sub(":", body)
             
@@ -4166,16 +4208,60 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             
             try:
                 search = header.replace(" ","\n").encode("utf-8")+body.encode("utf-8")
+                # Replace different encodings of " before searching to maximise finds
+                search = search.replace('&#34;','"').replace('%22','"').replace('\x22','"').replace('\u0022','"')
                 try:
-                    link_keys = self.REGEX_LINKS.finditer(search)
+                    #link_keys = self.REGEX_LINKS.finditer(search)
+                    # Extract links using first regex
+                    link_keys = [match.group(0) for match in self.REGEX_LINKS.finditer(search)]
                 except Exception as e:
                     self._stderr.println("getResponseParams 4")
                     self._stderr.println(e)
 
+                try:
+                    if tldextractImported:
+                        # Extract additional links
+                        extra_keys = [match.group(0) for match in self.REGEX_LINKS_EXTRA.finditer(search)]
+                        
+                        # Filter out:
+                        # - invalid domains (TLDs that don't exist)
+                        # - domain with less than 3 chars before tld
+                        # - domaina that start with _
+                        # - suffix 'call','skin','menu','style','rest','next'
+                        # - domains 'this','self','target','value','values','prop','properties','proparray','useragent','rect','paddiing','style','rule','bound','child','global','element','div','prototype','event','feature','path'
+                        # - suffix is 'js' and domain is NOT 'map'
+                        # - domains with TLDs that arent in the COMMON_TLDS list
+                        valid_extra_keys = [
+                            key for key in extra_keys 
+                            if tldextract.extract(key).suffix 
+                            and tldextract.extract(key).suffix.lower() not in ('call', 'skin', 'menu', 'style', 'rest', 'next', 'top') 
+                            and len(tldextract.extract(key).domain) > 2 
+                            and not tldextract.extract(key).domain.startswith('_') 
+                            and tldextract.extract(key).domain.lower() not in (
+                                'this', 'self', 'target', 'value', 'values', 'prop', 'properties', 'proparray', 'useragent', 'rect', 'paddiing', 'style', 'rule', 'bound', 'child', 'global', 'element', 'div', 'prototype', 'event', 'feature', 'path'
+                            ) 
+                            and not (
+                                tldextract.extract(key).suffix.lower() == "map" 
+                                and tldextract.extract(key).domain.lower() != "js"
+                            )
+                            and ("." + tldextract.extract(key).suffix.lower()) in ["." + suffix for suffix in COMMON_TLDS]  
+                        ]
+
+                        # Add extra keys
+                        link_keys.extend(valid_extra_keys)
+                except Exception as e:
+                    self._stderr.println("getResponseParams 5")
+                    self._stderr.println(e)
+                
+                # Remove duplicates
+                link_keys = list(set(link_keys))
+                
                 for key in link_keys:
                     self.checkIfCancel()
-                    if key is not None and len(key.group().strip()) > 1:
-                        link = key.group().strip()
+                    #if key is not None and len(key.group().strip()) > 1:
+                    if key is not None and len(key.strip()) > 1:
+                        #link = key.group().strip()
+                        link = key.strip()
 
                         # If the link has been processed already, skip to the next
                         if link in linksProcessed:

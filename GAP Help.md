@@ -10,11 +10,11 @@ A shout out to Gerben Javado and his amazing tool <b>Link Finder</b> who's regul
 
 <h1>How to Install</h1>
 <ol>
-<li>Visit <a href="https://www.jython.org/download">Jython Offical Site</a>, and download the latest stand alone JAR file, e.g. <code>jython-standalone-2.7.3.jar</code>.</li>
+<li>Visit <a href="https://www.jython.org/download">Jython Offical Site</a>, and download the latest stand alone JAR file, e.g. <code>jython-standalone-2.7.4.jar</code>.</li>
 <li>Open Burp, go to <b>Extensions</b> -> <b>Extension Settings</b> -> <b>Python Environment</b>, set the <b>Location of Jython standalone JAR file</b> and <b>Folder for loading modules</b> to the directory where the Jython JAR file was saved.</li>
-<li>On a command line, go to the directory where the jar file is and run <code>java -jar jython-standalone-2.7.3.jar -m ensurepip</code>.</li>
+<li>On a command line, go to the directory where the jar file is and run <code>java -jar jython-standalone-2.7.4.jar -m ensurepip</code>.</li>
 <li>Download the <code>GAP.py</code> and <code>requirements.txt</code> from this project and place in the same directory.</li>
-<li>Install Jython modules by running <code>java -jar jython-standalone-2.7.3.jar -m pip install -r requirements.txt</code>.</li>
+<li>Install Jython modules by running <code>java -jar jython-standalone-2.7.4.jar -m pip install --no-cache-dir --no-compile -r requirements.txt</code>.</li>
 <li>Go to the <b>Extensions</b> -> <b>Installed</b> and click <b>Add</b> under <b>Burp Extensions</b>.
 <li>Set <b>Extension type</b> to <b>Python</b> and select the <code>GAP.py</code> file</li>
 <li>Click <b>Next</b> and you're good to go <b>&#129304;</b></i>
@@ -183,9 +183,9 @@ If you run GAP for one or more targets from the Site Map view, don't have them e
 
 If you want to run GAP on one of more specific requests, do not select them from the Site Map tree view. It will be a lot quicker to run it from the Site Map Contents view if possible, or from proxy history.
 
-It is hard to design GAP to display all controls for all screen resolutions and font sizes. I have tried to deal with the most common setups, but if you find you cannot see all the controls, you can hold down the `Ctrl` button and click the GAP logo header image to remove it to make more space.</p>
+It is hard to design GAP to display all controls for all screen resolutions and font sizes. I have tried to deal with the most common setups, but if you find you cannot see all the controls, you can hold down the <code>Ctrl</code> button and click the GAP logo header image to remove it to make more space.</p>
 
-<p><p>
+<p>
 <h1></h1>
 Thank you for trying out GAP!<br>
 Good luck and good hunting!

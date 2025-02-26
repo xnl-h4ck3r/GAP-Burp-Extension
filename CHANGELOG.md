@@ -1,5 +1,27 @@
 ## Changelog
 
+- v5.5
+
+  - New
+
+    - Add a `COMMON_TLDS` list. This can't be edited through the UI at the moment, but can be changed in the code if required.
+    - Perform a separate regex search for links that can potentially get lots of false positives, but validate these by checking the TLD for the link is valid. The following will NOT be returned:
+      - invalid domains (TLDs that don't exist)
+      - domain with less than 3 chars before tld
+      - domain doesn't start with `_`
+      - suffix `call`,`skin`,`menu`,`style`,`rest`,`next`
+      - domains `this`,`self`,`target`,`value`,`values`,`prop`,`properties`,`proparray`,`useragent`,`rect`,`paddiing`,`style`,`rule`,`bound`,`child`,`global`,`element`,`div`,`prototype`,`event`,`feature`,`path`
+      - suffix is `js` and domain is NOT `map`
+      - domains with TLDs that aren't in the `COMMON_TLDS` list
+    - Before searching for links, replace different encodings of double quotes with `"` to maximise the number of links found.
+    - Remove any base64 encoded strings over 10,000 characters long (that match regex `eyJ[a-zA-Z0-9\+\/]+(?:=|\b|\n)`). There are some responses that can have huge ones and ends up causing regex problems and hanging.
+    - Don't include any links that start with a `-`.
+
+  - Changed
+
+    - Update the latest version of the Jython `.jar` file in `README.md` and `GAP Help.md`.
+    - Update the `pip install` command in the installation instructions to use `--no-cache-dir --no-compile`. This resolved an issue I had trying to install `tldextract`.
+
 - v5.4
 
   - Changed
