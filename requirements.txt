@@ -1,4 +1,4 @@
 beautifulsoup4
 html5lib
 urllib3
-tldextract=2.2.3
+tldextract==2.2.3
