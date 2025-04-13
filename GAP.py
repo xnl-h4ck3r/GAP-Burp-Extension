@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.5"
+VERSION="5.6"
 
 _debug = False
 
@@ -256,7 +256,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_XMLATTR = re.compile(r"<([a-zA-Z0-9$_\.-]*?)>")
         
         # Regex for HTML input fields
-        self.REGEX_HTMLINP = re.compile(r"<input(.*?)>", re.IGNORECASE)
+        self.REGEX_HTMLINP = re.compile(r"<(input|textarea)(.*?)>", re.IGNORECASE)
         self.REGEX_HTMLINP_NAME = re.compile(r"(?<=\sname)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|\'))", re.IGNORECASE)    
         self.REGEX_HTMLINP_ID = re.compile(r"(?<=\sid)[\s]*\=[\s]*(\"|')(.*?)(?=(\"|'))", re.IGNORECASE)
     
@@ -360,7 +360,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             self.lblResponseParams.setToolTipText("These are identified by GAP, mainly with regular expressions.")
             self.cbParamJSONResponse.setToolTipText("If the response has a MIME type of JSON then the Key names will be retrieved.")
             self.cbParamXMLResponse.setToolTipText("If the response has a MIME type of XML then the XML attributes are retrieved.")
-            self.cbParamInputField.setToolTipText("If the response has a MIME type of HTML then the value of the NAME and ID attributes of any INPUT tags are retrieved.")
+            self.cbParamInputField.setToolTipText("If the response has a MIME type of HTML (or JAVASCRIPT because it may be building HTML) then the value of the NAME and ID attributes of any INPUT or TEXTAREA tags are retrieved.")
             self.cbParamJSVars.setToolTipText("Javascript variables set with 'var', 'let' or 'const' are retrieved.")
             self.cbParamFromLinks.setToolTipText("Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope,\nor there is just a path and no way of determining if it is in scope.")
             self.cbReportSusParams.setToolTipText("If a 'sus' parameter is identified, a Burp custom Issue will be raised (unavailable in Burp Community Edition).\nThere will be no markers in the Request/Response of the Issue showing where the named parameter can be found because including this functionality\nseriously increases the time GAP can take to run, so this is not a feature at the moment.\nFor Burp Community Edition, the details of the parameter will be written to the extension output.")
@@ -3967,14 +3967,14 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 self._stderr.println("getResponseParams 5")
                                 self._stderr.println(e)
 
-                    # If the mime type is HTML then get <input> name and id values, and meta tag names
-                    elif mimeType == "HTML":
+                    # If the mime type is HTML (or JAVASCRIPT becuase it could be building HTML) then get <input> OR <textarea> name and id values, and meta tag names
+                    elif mimeType == "HTML" or mimeType == "JAVASCRIPT":
 
                         if self.cbParamInputField.isSelected():
                             # Get Input field name and id attributes
                             try:
                                 html_keys = self.REGEX_HTMLINP.findall(body)
-                                for key in html_keys:
+                                for tag, key in html_keys:
                                     self.checkIfCancel()
                                     input_name = self.REGEX_HTMLINP_NAME.search(key)
                                     if input_name is not None and input_name.group() != "":

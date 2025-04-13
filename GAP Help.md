@@ -66,7 +66,7 @@ These are potential parameters that can be found in the HTTP responses. These ar
 <ul>
 <li><b>JSON params</b> - if the response has a MIME type of JSON then the Key names will be retrieved</li>
 <li><b>Value of tag attributes in XML structure</b> - if the response has a MIME type of XML then the XML attributes are retrieved</li>
-<li><b>Name and Id attributes of HTML input fields</b> - if the response has a MIME type of HTML then the value of the NAME and ID attributes of any INPUT tags are retrieved</li>
+<li><b>Name and Id attributes of HTML input fields</b> - if the response has a MIME type of HTML OR JAVASCRIPT (because it maybe building HTML) then the value of the NAME and ID attributes of any INPUT or TEXTAREA tags are retrieved</li>
 <li><b>Javascript variables and constants</b> - javascript variables set with <code>var</code>, <code>let</code> or <code>const</code> are retrieved. Also, if there is a variable set with one of those keywords that is set to a nested object, the keys for that object are also returned as parameters. In addition to this, any key value is nested objects for <code>dataLayer.push</code> are also returned. <b>NOTE: Improvements are needed to retrieve more variables as there are many ways that these can be declared and difficult to retrieve all from regex.</b></li>
 <li><b>Params from links found</b> - THIS OPTION IS ONLY ENABLED IF LINKS MODE IS ALSO USED. Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope, or there is just a path and no way of determining if it is in scope.</li>
 </ul>

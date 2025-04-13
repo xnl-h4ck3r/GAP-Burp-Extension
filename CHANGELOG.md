@@ -1,5 +1,11 @@
 ## Changelog
 
+- v5.6
+
+  - Changed
+
+    - If the `cbParamInputField` checkbox is selected then it will get names from HTML `input` fields AND `textarea` fields. If the content type contains `HTML` OR `JAVSCRIPT` then the response will be searched (because the HTML may be getting built in the javascript code).
+
 - v5.5
 
   - New
