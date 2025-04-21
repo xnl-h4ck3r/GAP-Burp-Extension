@@ -1,5 +1,15 @@
 ## Changelog
 
+- v5.7
+
+  - New
+
+    - Also get potential links from S3 bucket file listings where file names can be in `<Key></Key>` tags.
+
+  - Changed
+
+    - BUG FIX: Prefix any extra links found with `tldextract` with a `//` so they are treated later as full URLs, not file names, and therefore checked correctly for scope.
+
 - v5.6
 
   - Changed

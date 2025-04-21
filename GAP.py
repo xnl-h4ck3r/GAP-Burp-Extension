@@ -241,7 +241,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     )
 
         # Compile the link regex
-        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-\.]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')", re.IGNORECASE)
+        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-\.]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')|(?<=\<Key\>)[^\<]+\<\/Key\>", re.IGNORECASE)
         
         # Compile the extra links regex
         self.REGEX_LINKS_EXTRA = re.compile(r"(?:[a-zA-Z0-9_-]+\.){0,5}[a-zA-Z0-9_-]+\.[a-zA-Z]{2,24}(?:(\/|\?)[^\s\"'<>()\[\]{}]*)?", re.IGNORECASE)
@@ -4232,7 +4232,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         # - suffix is 'js' and domain is NOT 'map'
                         # - domains with TLDs that arent in the COMMON_TLDS list
                         valid_extra_keys = [
-                            key for key in extra_keys 
+                            "//"+key for key in extra_keys 
                             if tldextract.extract(key).suffix 
                             and tldextract.extract(key).suffix.lower() not in ('call', 'skin', 'menu', 'style', 'rest', 'next', 'top') 
                             and len(tldextract.extract(key).domain) > 2 
