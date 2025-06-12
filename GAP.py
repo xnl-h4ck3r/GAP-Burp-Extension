@@ -246,6 +246,12 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Compile the extra links regex
         self.REGEX_LINKS_EXTRA = re.compile(r"(?:[a-zA-Z0-9_-]+\.){0,5}[a-zA-Z0-9_-]+\.[a-zA-Z]{2,24}(?:(\/|\?)[^\s\"'<>()\[\]{}]*)?", re.IGNORECASE)
         
+        # Compile the regex for getting potential endpoints built in JS
+        self.REGEX_LINKS_JSBUILT = re.compile(r'\.?(?:get|post|put|delete|patch)\(\s*["\'`]([^)]*?)\)', re.IGNORECASE)
+                                                                                                                      
+        # Compile the regex for getting fetch() links
+        self.REGEX_LINKS_FETCH = re.compile(r'''fetch\s*\(\s*["'`]((?:\/|https?:\/\/)[^"'`)]*)["'`]''', re.IGNORECASE)
+        
         # Regex for checking Burp url when checking if in scope
         self.REGEX_BURPURL = re.compile(r"^(https?:)?\/\/([-a-zA-Z0-9_]+\.)?[-a-zA-Z0-9_]+\.[-a-zA-Z0-9_\.\?\#\&\=]+$", re.IGNORECASE)
         
@@ -275,7 +281,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_PORTSUB443 = re.compile(r":443")
         
         # Regex for valid parameter
-        self.REGEX_PARAM = re.compile(r"[0-9a-zA-Z_]")
+        self.REGEX_PARAM = re.compile(r"^[A-Za-z0-9_.~\-\[\]]+$")
         
         # Regex for param keys
         self.REGEX_PARAMKEYS = re.compile(r"(?<=\?|&)[^\=\&\n].*?(?=\=|&|\n)")
@@ -826,7 +832,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.txtDebugDetail.setVisible(False)
         self.txtDebugDetail.setLineWrap(True)
         self.txtDebugDetail.setEditable(False)
-        self.logContentType = False
+        self.logExtraInfo = False
         
         # Restore saved config settings
         self.restoreSavedConfig()
@@ -1267,7 +1273,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 self.txtDebug.setVisible(True)
                 self.txtDebug.text = "DEBUG TEXT WILL BE DISPLAYED"
                 self.txtDebugDetail.setVisible(True)
-                self.logContentType = True
+                self.logExtraInfo = True
             else:
                 Desktop.getDesktop().browse(URI(URL_GITHUB))
         except:
@@ -4135,7 +4141,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                         include = False
                         break
                                 
-            if (_debug or self.logContentType) and include:
+            if (_debug or self.logExtraInfo) and include:
                 print("Content-Type included: "+contentType)
         
         except Exception as e:
@@ -4211,7 +4217,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # Replace different encodings of " before searching to maximise finds
                 search = search.replace('&#34;','"').replace('%22','"').replace('\x22','"').replace('\u0022','"')
                 try:
-                    #link_keys = self.REGEX_LINKS.finditer(search)
                     # Extract links using first regex
                     link_keys = [match.group(0) for match in self.REGEX_LINKS.finditer(search)]
                 except Exception as e:
@@ -4253,6 +4258,68 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     self._stderr.println("getResponseParams 5")
                     self._stderr.println(e)
                 
+                # Get links from JS where they are built
+                try:
+                    raw_keys = self.REGEX_LINKS_JSBUILT.findall(search)
+
+                    jsbuilt_keys = []
+                    for key in raw_keys:
+                        key = key.strip()
+
+                        # Skip if it starts with a quote, contains < or >, or starts with $
+                        # or has a . somewhere before the :// if there is only one occurrence of ://
+                        if key.startswith(("'", '"', '`')):
+                            continue
+                        if '<' in key or '>' in key:
+                            continue
+                        if '/' not in key:
+                            continue
+                        if key.startswith('$'):
+                            continue
+                        if key.count("://") == 1:
+                            scheme_index = key.index("://")
+                            if '.' in key[:scheme_index]:
+                                continue
+
+                        # Prepend slash if needed
+                        if not key.startswith('/') and not key.startswith('http'):
+                            key = '/' + key
+                        
+                        # Cut off at the first quote, if it exists
+                        key = key.split('"')[0].split("'")[0].split('`')[0]
+                                
+                        if (_debug or self.logExtraInfo):
+                            print("JS Built Link: "+key)
+                        jsbuilt_keys.append(key)
+
+                    link_keys.extend(jsbuilt_keys)
+
+                except Exception as e:
+                    self._stderr.println("getResponseParams 5")
+                    self._stderr.println(e)
+            
+                # Get links from JS where fetch() is used
+                try:
+                    raw_keys = self.REGEX_LINKS_FETCH.findall(search)
+
+                    fetch_keys = []
+                    for key in raw_keys:
+                        key = key.strip()
+
+                        # Prepend slash if needed
+                        if not key.startswith('/') and not key.startswith('http'):
+                            key = '/' + key
+                                
+                        if (_debug or self.logExtraInfo):
+                            print("JS Fetch Link: "+key)
+                        fetch_keys.append(key)
+
+                    link_keys.extend(fetch_keys)
+
+                except Exception as e:
+                    self._stderr.println("getResponseParams 6")
+                    self._stderr.println(e)
+                    
                 # Remove duplicates
                 link_keys = list(set(link_keys))
                 
@@ -4950,8 +5017,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                 # If the parameter has any backslashes, forward slashes, quot;, apos; or amp; in, then remove them
                 param = param.replace('\\', '').replace('/', '').replace('quot;','').replace('apos;','').replace('amp;','')
                 
-                # Add the param and origin to the list if the param does not contain at least 1 character that is a letter, number or _ 
-                if param != "" and self.REGEX_PARAM.search(param) is not None:
+                # Add the param and origin to the list if the param only contains the characters: A-Z a-z 0-9 - _ . ~ [ ]
+                matchedParam = self.REGEX_PARAM.match(param)
+                if param != "" and matchedParam and matchedParam.group(0) == param:
                     
                     # Check if it is a sus parameter and raise scan issue if it is enabled
                     self.checkSusParams(param, confidence, context)

@@ -1,5 +1,16 @@
 ## Changelog
 
+- v5.8
+
+  - New
+
+    - Get links when jQuery-like methods such as `.get()`, `.post()`, etc., are being used. There are some false positives by just checking for `.get(` instead of `$.get(` for example, but the trade off is worth it for now.
+    - Get links from `fetch()` just in case there are any that the main regex does not get.
+
+  - Changed
+
+    - Potential parameter names should only be displayed if they ONLY contain the following characters `A-Z a-z 0-9 - _ . ~ [ ]`
+
 - v5.7
 
   - New
