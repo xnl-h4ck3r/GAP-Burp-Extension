@@ -247,7 +247,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_LINKS_EXTRA = re.compile(r"(?:[a-zA-Z0-9_-]+\.){0,5}[a-zA-Z0-9_-]+\.[a-zA-Z]{2,24}(?:(\/|\?)[^\s\"'<>()\[\]{}]*)?", re.IGNORECASE)
         
         # Compile the regex for getting potential endpoints built in JS
-        self.REGEX_LINKS_JSBUILT = re.compile(r'\.?(?:get|post|put|delete|patch)\(\s*["\'`]([^)]*?)\)', re.IGNORECASE)
+        self.REGEX_LINKS_JSBUILT = re.compile(r'\.(?:get|post|put|delete|patch)\(\s*["\'`]([^)]*?)\)', re.IGNORECASE)
                                                                                                                       
         # Compile the regex for getting fetch() links
         self.REGEX_LINKS_FETCH = re.compile(r'''fetch\s*\(\s*["'`]((?:\/|https?:\/\/)[^"'`)]*)["'`]''', re.IGNORECASE)
