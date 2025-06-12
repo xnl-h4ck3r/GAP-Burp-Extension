@@ -9,7 +9,7 @@
 
   - Changed
 
-    - Potential parameter names should only be displayed if they ONLY contain the following characters `A-Z a-z 0-9 - _ . ~ [ ]`
+    - Potential parameter names should only be displayed if they ONLY contain the following characters `A-Z a-z 0-9 - _ . ~ [ ]`. These are the only characters that should appear in parameter names.
 
 - v5.7
 
