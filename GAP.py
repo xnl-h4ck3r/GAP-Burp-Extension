@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.6"
+VERSION="5.8"
 
 _debug = False
 
