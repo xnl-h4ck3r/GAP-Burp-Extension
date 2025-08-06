@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.8"
+VERSION="5.9"
 
 _debug = False
 
@@ -89,16 +89,16 @@ COMMON_TLDS = ['com', 'de', 'net', 'org', 'uk', 'cn', 'ga', 'nl', 'cf', 'ml',
                'biz', 'se', 'at', 'dk', 'cz', 'za', 'me', 'ir', 'icu', 'shop',  
                'kr', 'site', 'mx', 'hu', 'io', 'cc', 'club', 'no', 'cyou', 'store']
 
-# Sus Parameters from @jhaddix and @G0LDEN_infosec
-SUS_CMDI = ['execute','dir','daemon','cli','log','cmd','download','ip','upload']
-SUS_DEBUG = ['test','reset','config','shell','admin','exec','load','cfg','dbg','edit','root','create','access','disable','alter','make','grant','adm','toggle','execute','clone','delete','enable','rename','debug','modify']
-SUS_FILEINC =  ['root','directory','path','style','folder','default-language','url','platform','textdomain','document','template','pg','php_path','doc','type','lang','token','name','pdf','file','etc','api','app','resource-type']
+# Sus Parameters from @jhaddix and @G0LDEN_infosec / WAF targeted param data from @ryancbarnett
+SUS_CMDI = ['execute','dir','daemon','cli','log','cmd','download','ip','upload','message','input_file','format','expression','data','bsh','bash','shell','command','range','sort','host','exec','code']
+SUS_DEBUG = ['test','reset','config','shell','admin','exec','load','cfg','dbg','edit','root','create','access','disable','alter','make','grant','adm','toggle','execute','clone','delete','enable','rename','debug','modify','stacktrace']
+SUS_FILEINC =  ['root','directory','path','style','folder','default-language','url','platform','textdomain','document','template','pg','php_path','doc','type','lang','token','name','pdf','file','etc','api','app','resource-type','controller','filename','page','f','view','input_file']
 SUS_IDOR = ['count','key','user','id','extended_data','uid2','group','team_id','data-id','no','username','email','account','doc','uuid','profile','number','user_id','edit','report','order']
 SUS_OPENREDIRECT = ['u','redirect_uri','failed','r','referer','return_url','redirect_url','prejoin_data','continue','redir','return_to','origin','redirect_to','next']
-SUS_SQLI = ['process','string','id','referer','password','pwd','field','view','sleep','column','log','token','sel','select','sort','from','search','update','pub_group_id','row','results','role','table','multi_layer_map_list','order','filter','params','user','fetch','limit','keyword','email','query','c','name','where','number','phone_number','delete','report']
-SUS_SSRF = ['sector_identifier_uri', 'request_uris', 'logo_uri', 'jwks_uri', 'start','path','domain','source','url','site','view','template','page','show','val','dest','metadata','out','feed','navigation','image_host','uri','next','continue','host','window','dir','reference','filename','html','to','return','open','port','stop','validate','resturl','callback','name','data','ip','redirect']
+SUS_SQLI = ['process','string','id','referer','password','pwd','field','view','sleep','column','log','token','sel','select','sort','from','search','update','pub_group_id','row','results','role','table','multi_layer_map_list','order','filter','params','user','fetch','limit','keyword','email','query','c','name','where','number','phone_number','delete','report','q','sql']
+SUS_SSRF = ['sector_identifier_uri', 'request_uris', 'logo_uri', 'jwks_uri', 'start','path','domain','source','url','site','view','template','page','show','val','dest','metadata','out','feed','navigation','image_host','uri','next','continue','host','window','dir','reference','filename','html','to','return','open','port','stop','validate','resturl','callback','name','data','ip','redirect','target','referer']
 SUS_SSTI = ['preview','activity','id','name','content','view','template','redirect']
-SUS_XSS = ['path','admin','class','atb','redirect_uri','other','utm_source','currency','dir','title','endpoint','return_url','users','cookie','state','callback','militarybranch','e','referer','password','author','body','status','utm_campaign','value','text','search','flaw','vote','pathname','params','user','t','utm_medium','q','email','what','file','data-original','description','subject','action','u','nickname','color','language_id','auth','samlresponse','return','readyfunction','where','tags','cvo_sid1','target','format','back','term','r','id','url','view','username','sequel','type','city','src','p','label','ctx','style','html','ad_type','s','issues','query','c','shop','redirect']
+SUS_XSS = ['path','admin','class','atb','redirect_uri','other','utm_source','currency','dir','title','endpoint','return_url','users','cookie','state','callback','militarybranch','e','referer','password','author','body','status','utm_campaign','value','text','search','flaw','vote','pathname','params','user','t','utm_medium','q','email','what','file','data-original','description','subject','action','u','nickname','color','language_id','auth','samlresponse','return','readyfunction','where','tags','cvo_sid1','target','format','back','term','r','id','url','view','username','sequel','type','city','src','p','label','ctx','style','html','ad_type','s','issues','query','c','shop','redirect','page','prefv1','destination','mode','data','error','editor','wysiwyg','widget','msg']
 
 # Additional Sus Parameters
 SUS_MASSASSIGNMENT = ['user','profile','role','settings','data','attributes','post','comment','order','product','form_fields','request']
