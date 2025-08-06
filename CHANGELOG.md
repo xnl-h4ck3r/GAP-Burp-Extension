@@ -1,5 +1,11 @@
 ## Changelog
 
+- v5.9
+
+  - New
+
+    - Modified the Sus Params data to include additional data gathered from Akamai WAF threat research team intel - thanks to @ryancbarnett
+
 - v5.8
 
   - New
