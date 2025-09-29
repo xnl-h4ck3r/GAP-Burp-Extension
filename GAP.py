@@ -8,7 +8,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
-VERSION="5.9"
+VERSION="5.10"
 
 _debug = False
 
@@ -241,7 +241,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                     )
 
         # Compile the link regex
-        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-\.]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')|(?<=\<Key\>)[^\<]+\<\/Key\>", re.IGNORECASE)
+        self.REGEX_LINKS = re.compile(r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:#?\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}" + self.LINK_REGEX_NONSTANDARD_FILES + ")(?:[\?|\/][^\"|']{0,}|))|([a-zA-Z0-9_\-\.]{1,255}\.(?:" + LINK_REGEX_FILES + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]*|(?<=^Allow:\s)[^\$\n]*|(?<= Domain\=)[^\";']*|(?<=\<)https?:\/\/[^>\n]*|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]*)(\"|\')|(?<=\<Key\>)[^\<]+\<\/Key\>", re.IGNORECASE)
         
         # Compile the extra links regex
         self.REGEX_LINKS_EXTRA = re.compile(r"(?:[a-zA-Z0-9_-]+\.){0,5}[a-zA-Z0-9_-]+\.[a-zA-Z]{2,24}(?:(\/|\?)[^\s\"'<>()\[\]{}]*)?", re.IGNORECASE)
@@ -306,9 +306,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.REGEX_LINKSEQUAL = re.compile(r"%3d|\&equals;|\&#0?61;|\u003d|u003d|x3d|\x3d", re.IGNORECASE)
         self.REGEX_LINKBRACKET = re.compile(r"\(.*\)")
         self.REGEX_LINKBRACES = re.compile(r"\{.*\}")
-        self.REGEX_LINKSEARCH1 = re.compile(r"^((?:[^\(\)]|\([^\)]*\))*)\)[^\(]*$")
-        self.REGEX_LINKSEARCH2 = re.compile(r"^((?:[^\[\]]|\[[^\]]*\])*)\][^\[]*$")
-        self.REGEX_LINKSEARCH3 = re.compile(r"^((?:[^\{\}]|\{[^\}]*\})*)\}[^\{]*$")
+        #self.REGEX_LINKSEARCH1 = re.compile(r"^((?:[^\(\)]|\([^\)]*\))*)\)[^\(]*$")
+        #self.REGEX_LINKSEARCH2 = re.compile(r"^((?:[^\[\]]|\[[^\]]*\])*)\][^\[]*$")
+        #self.REGEX_LINKSEARCH3 = re.compile(r"^((?:[^\{\}]|\{[^\}]*\})*)\}[^\{]*$")
         self.REGEX_LINKSEARCH4 = re.compile(r"<\/")
         self.REGEX_VALIDHOST = re.compile(r"^([A-Za-z0-9_-]+\.)+[A-Za-z0-9_-]{2,}$")
         
@@ -4027,7 +4027,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # positive that can sometimes be raised by the regex
         # And exclude if the link:
         # - starts with literal characters \n
-        # - starts with #
+        # - starts with # (and not #/ because these are Angular JS redirect routes)
         # - starts with \
         # - has any white space characters in
         # - has any new line characters in
@@ -4037,9 +4037,10 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # - starts with /=
         # - starts with application/, image/, model/, video/, audio/ or text/ as this is a content-type that can sometimes be confused for links
         # - starts with a -
+        # - starts with ...
         try:
             if include:
-                if link.count("\n") > 1 or link.startswith("#") or link.startswith("$") or link.startswith("\\") or link.startswith("/=") or link.startswith("-"):
+                if link.count("\n") > 1 or (link.startswith("#") and not link.startswith("#/")) or link.startswith("$") or link.startswith("\\") or link.startswith("/=") or link.startswith("-") or link.startswith("..."):
                     include = False
                 if include:
                     include = not (bool(re.search(r"\s", link)))
@@ -4150,30 +4151,41 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             
         return include
 
-    def stripLinkFromUnbalancedBrackets(self, regex, link):
+    def stripLinkFromUnbalancedBrackets(self, link):
         """
-        Search a link for an unmatched bracket (using the regex passed)
+        Strips the link from the first truly unbalanced closing bracket,
+        and removes extra trailing opening brackets if unmatched at the end.
+        Supports (), [], {}.
         """
         try:
-            pattern = re.compile(regex)
-            # Search for the pattern in the link
-            match = re.search(pattern, link)
-            # If a match is found, return the matched substring, else return the original link
-            if match:
-                return match.group(1)
-            else:
-                return link
-        except RuntimeError as e:
-            # Check if the error message matches the specific recursion depth issue
-            if "maximum recursion depth exceeded" in str(e):
-                return link
-            else:
-                raise  # If it's another RuntimeError, let it propagate
+            # Strips unbalanced brackets
+            brackets = {'(': ')', '[': ']', '{': '}'}
+            opening = brackets.keys()
+            closing = brackets.values()
+            stack = []
+            last_valid_index = len(link)
+
+            for i in range(len(link)):
+                c = link[i]
+                if c in opening:
+                    stack.append((c, i))
+                elif c in closing:
+                    if stack and brackets[stack[-1][0]] == c:
+                        stack.pop()
+                    else:
+                        last_valid_index = i
+                        break
+
+            if stack:
+                last_open_index = stack[0][1]
+                last_valid_index = min(last_valid_index, last_open_index)
+
+            return link[:last_valid_index]
         except Exception as e:
             self._stderr.println("ERROR stripLinkFromUnbalancedBrackets 1: " + link)
             self._stderr.println(e)
             return ""
-    
+        
     def clean_body(self, body):
         try:
             pattern = r"eyJ[a-zA-Z0-9\+\/]+(?:=|\b|\n)"
@@ -4390,10 +4402,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
                                 link = link.split("`")[0]
                                 
                                 # If there are any unbalanced brackets in the link, then strip from the unbalanced bracket
-                                link = self.stripLinkFromUnbalancedBrackets(self.REGEX_LINKSEARCH1, link)
-                                link = self.stripLinkFromUnbalancedBrackets(self.REGEX_LINKSEARCH2, link)
-                                link = self.stripLinkFromUnbalancedBrackets(self.REGEX_LINKSEARCH3, link)
-                                
+                                link = self.stripLinkFromUnbalancedBrackets(link)
+
                                 # If there is a </ in the link then strip from that forward
                                 if self.REGEX_LINKSEARCH4.search(link):
                                     link = link.split("</", 1)[0]                           
