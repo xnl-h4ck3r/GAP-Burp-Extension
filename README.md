@@ -1,6 +1,6 @@
 <center><img src="https://raw.githubusercontent.com/xnl-h4ck3r/GAP-Burp-Extension/main/GAP/images/title.png"></center>
 
-## About - v5.10
+## About - v6.0
 
 This is an evolution of the original getAllParams extension for Burp. Not only does it find more potential parameters for you to investigate, but it also finds potential links to try these parameters on, and produces a target specific wordlist to use for fuzzing.
 The full Help documentation can be found [here](https://github.com/xnl-h4ck3r/burp-extensions/blob/main/GAP%20Help.md) or from the Help icon on the GAP tab.
@@ -34,6 +34,7 @@ Or you can right click a request or response in any other context and select **G
 If you don't need one of the modes, then un-check it as results will be quicker.
 
 If you run GAP for one or more targets from the Site Map view, don't have them expanded when you run GAP... unfortunately this can make it a lot slower. It will be more efficient if you run for one or two target in the Site Map view at a time, as huge projects can have consume a lot of resources.
+Also, if you run from the Site Map, **make sure you have correct Scope set in Burp** before you run it.
 
 If you want to run GAP on one of more specific requests, do not select them from the Site Map tree view. It will be a lot quicker to run it from the Site Map Contents view if possible, or from proxy history.
 

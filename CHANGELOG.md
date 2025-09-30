@@ -1,5 +1,20 @@
 ## Changelog
 
+- v6.0
+
+  - New
+
+    - Allow Links prefix with `source target only`. If this is selected then `selected target(s)` will be deselected (only one can be used), and that any links found without a domain will be prefixed just with the domain of the origin target only, i.e. the domain of the file it was discovered in.
+    - Show popup box for `Prefix with link(s)` to make it easier to add multiple prefix targets. They will also be validated and shown which one is invalid as you type.
+    - Add a text box to change maximum word length as well as minimum word length.
+    - Add an important note to the `REAEDME` to say that Burp Scope needs to be set if you run from Site Map.
+
+  - Changed
+
+    - If the `cbParamInputField` checkbox is selected then it will get names from HTML `select` and `button` fields in addition to `input` and `textarea` fields.
+    - Make minor adjustments to the display of the controls to improve presentation.
+    - Update the `GAP Help.md` to reflect all changes.
+
 - v5.10
 
   - New

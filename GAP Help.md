@@ -66,7 +66,7 @@ These are potential parameters that can be found in the HTTP responses. These ar
 <ul>
 <li><b>JSON params</b> - if the response has a MIME type of JSON then the Key names will be retrieved</li>
 <li><b>Value of tag attributes in XML structure</b> - if the response has a MIME type of XML then the XML attributes are retrieved</li>
-<li><b>Name and Id attributes of HTML input fields</b> - if the response has a MIME type of HTML OR JAVASCRIPT (because it maybe building HTML) then the value of the NAME and ID attributes of any INPUT or TEXTAREA tags are retrieved</li>
+<li><b>Name and Id attributes of HTML input fields</b> - if the response has a MIME type of HTML OR JAVASCRIPT (because it maybe building HTML) then the value of the NAME and ID attributes of any INPUT, TEXTAREA, SELECT or BUTTON tags are retrieved</li>
 <li><b>Javascript variables and constants</b> - javascript variables set with <code>var</code>, <code>let</code> or <code>const</code> are retrieved. Also, if there is a variable set with one of those keywords that is set to a nested object, the keys for that object are also returned as parameters. In addition to this, any key value is nested objects for <code>dataLayer.push</code> are also returned. <b>NOTE: Improvements are needed to retrieve more variables as there are many ways that these can be declared and difficult to retrieve all from regex.</b></li>
 <li><b>Params from links found</b> - THIS OPTION IS ONLY ENABLED IF LINKS MODE IS ALSO USED. Any URL query string parameters in potential Links found will be retrieved, only if they are clearly in scope, or there is just a path and no way of determining if it is in scope.</li>
 </ul>
@@ -76,8 +76,9 @@ These are potential parameters that can be found in the HTTP responses. These ar
 When the GAP Mode of Links is selected then GAP will try to find possible links based on the following. Also, only requests of a certain <i>Content-Type</i> are checked for potential links. This is determined by the constant <code>CONTENTTYPE_EXCLUSIONS</code> in the code (these are types such as images, video, audio, fonts, etc.)
 
 <ul>
-<li><b>Prefix with selected target(s)</b> - If checked, the root of each target selected in the Site Map will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code></li>
-<li><b>Prefix with link(s)</b> - If checked, the value(s) in the text field will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code>. Multiple domains can be provided, separated by a semicolon, e.g. <code>http://example.com;https://sub.example.com</code></li>
+<li><b>Prefix with: selected target(s)</b> - If checked, the root of each target selected in the Site Map will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code></li>
+<li><b>Prefix with: origin target only</b> - If checked, the links found will be prefixed only with the domain of the origin where the link was found.</li>
+<li><b>Prefix with: link(s)</b> - If checked, the value(s) in the text field will be prefixed to any links found that do not have a domain, e.g. <code>/api/user/1</code>. Multiple domains can be provided, separated by a semicolon or a new line, e.g. <code>http://example.com;https://sub.example.com</code>. You can click the text box to open up an editor window to make it easier adding multiple domains.</li>
 <li><b>Also include un-prefixed links</b> - If the <b>Prefix with selected target(s)</b> or <b>Prefix with link(s)</b> option is checked then this option can be checked to include the original un-prefixed link in addition to the prefixed link.</li>
 <li><b>Include site map endpoints?</b> - This will include endpoints from the Burp Site map (what was selected) in the potential Link list, if they are in scope.</li>
 <li><b>Include relative links?</b> - If checked, links found that start with `./` or `../` will be included in the results.</li>
@@ -96,7 +97,8 @@ When the GAP Mode of Words is selected then GAP will produce a target specific w
 <li><b>Include words with digits?</b> - If un-checked, then any words with numeric digits will be excluded from output.</li>
 <li><b>Include URL path words?</b> - Any path words in selected links will be added as words.</li>
 <li><b>Include potential params</b> - This option is only shown if the Parameters Mode is enabled. If selected, all potential params will also be added to the word list.</li>
-<li><b>Maximum length of words</b> - The maximum length of words that will be output (this excludes plurals of minimum length words). This can be a minimum of 3.</li>
+<li><b>Word length: MINIMUM</b> - The minimum length of words that will be output (this excludes plurals of minimum length words). This can be a minimum of 3.</li>
+<li><b>Word length: MAXIMUM</b> - The maximum length of words that will be output (this excludes plurals of minimum length words). This can be a minimum of 3. If left blank, no maximum limit is applied.</li>
 <li><b>Stop words</b> - The term <b>stop words</b> comes from Natural Language Processing where they are common words that will be excluded from content. If a word exists in this list before running, then it will be excluded from output.</li>
 </ul>
 
