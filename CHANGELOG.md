@@ -1,5 +1,14 @@
 ## Changelog
 
+- v6.1
+
+  - Changed
+
+    - Amend the `self.REGEX_LINKS_EXTRA` to also check for unicode characters and `%` symbol, so it will also pick up domains like `thisätest.com` and `this%C3%A4test.com`.
+    - Fixed catastrophic backtracking in both the main link regex and domain regex by replacing all unbounded quantifiers (`*` and `{0,}`) with reasonable bounded limits (`{0,500}` or `{0,1000}`). This eliminates regex timeout issues that were occurring on large responses (180KB+), particularly those with special characters or multilingual content. The changes maintain full link discovery capabilities while preventing exponential backtracking that causes timeouts.
+    - Added intelligent content chunking for large responses (>50KB). Large response bodies are now automatically split into overlapping 40KB chunks before regex processing, with 5KB overlap to ensure no matches are missed at chunk boundaries. This provides defense-in-depth protection against performance issues on extreme edge cases while maintaining complete link discovery.
+    - Format code to comply with black and ruff checks.
+    
 - v6.0
 
   - New
