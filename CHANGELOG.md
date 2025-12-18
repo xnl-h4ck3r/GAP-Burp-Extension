@@ -1,5 +1,11 @@
 ## Changelog
 
+- v6.2
+
+  - Changed
+
+    - Change `DEFAULT_REGEX_TIMEOUT` to 30 seconds. It was intended as that but was accidentally set to 45 in previous testing.
+
 - v6.1
 
   - Changed

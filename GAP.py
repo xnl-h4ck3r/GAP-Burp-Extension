@@ -9,7 +9,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
 
-VERSION = "6.1"
+VERSION = "6.2"
 
 _debug = False
 
@@ -497,7 +497,7 @@ SUS_MASSASSIGNMENT = [
 ]
 
 # The number of seconds to wait for a regex query to complete when searching for links
-DEFAULT_REGEX_TIMEOUT = 45
+DEFAULT_REGEX_TIMEOUT = 30
 
 # Chunk large responses to prevent regex timeouts on extreme cases
 # If response body is larger than this, split into chunks (in bytes)
