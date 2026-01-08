@@ -1,5 +1,13 @@
 ## Changelog
 
+- v6.3
+
+  - Changed
+
+    - Improve the links finding regex slightly to find URLs that are split by whitespace. For example, if 3 URLs were listed with a space in between each, the previous regex would exclude the middle one.
+    - Implement `IExtensionStateListener` to properly shut down any `ScheduledThreadPoolExecutor` instances when the extension is unloaded. This will prevent memory leaks.
+    - Performance improvement: Convert `COMMON_TLDS` and all `SUS_*` parameter lists (e.g. `SUS_CMDI`, `SUS_SQLI`, `SUS_XSS`, etc.) from lists to `frozenset` for O(1) lookup performance instead of O(n) list searches.
+    
 - v6.2
 
   - Changed

@@ -9,7 +9,7 @@ Get full instructions at https://github.com/xnl-h4ck3r/GAP-Burp-Extension/blob/m
 Good luck and good hunting! If you really love the tool (or any others), or they helped you find an awesome bounty, consider BUYING ME A COFFEE! (https://ko-fi.com/xnlh4ck3r) (I could use the caffeine!)
 """
 
-VERSION = "6.2"
+VERSION = "6.3"
 
 _debug = False
 
@@ -21,6 +21,7 @@ from burp import (
     IScanIssue,
     IHttpRequestResponse,
     IExtensionHelpers,
+    IExtensionStateListener,
 )
 from javax.swing import (
     JFrame,
@@ -110,7 +111,7 @@ except Exception as e:
     html5libInstalled = False
 
 # Common domain TLDS
-COMMON_TLDS = [
+COMMON_TLDS = frozenset([
     "com",
     "de",
     "net",
@@ -161,10 +162,10 @@ COMMON_TLDS = [
     "no",
     "cyou",
     "store",
-]
+])
 
 # Sus Parameters from @jhaddix and @G0LDEN_infosec / WAF targeted param data from @ryancbarnett
-SUS_CMDI = [
+SUS_CMDI = frozenset([
     "execute",
     "dir",
     "daemon",
@@ -188,8 +189,8 @@ SUS_CMDI = [
     "host",
     "exec",
     "code",
-]
-SUS_DEBUG = [
+])
+SUS_DEBUG = frozenset([
     "test",
     "reset",
     "config",
@@ -217,8 +218,8 @@ SUS_DEBUG = [
     "debug",
     "modify",
     "stacktrace",
-]
-SUS_FILEINC = [
+])
+SUS_FILEINC = frozenset([
     "root",
     "directory",
     "path",
@@ -249,8 +250,8 @@ SUS_FILEINC = [
     "f",
     "view",
     "input_file",
-]
-SUS_IDOR = [
+])
+SUS_IDOR = frozenset([
     "count",
     "key",
     "user",
@@ -272,8 +273,8 @@ SUS_IDOR = [
     "edit",
     "report",
     "order",
-]
-SUS_OPENREDIRECT = [
+])
+SUS_OPENREDIRECT = frozenset([
     "u",
     "redirect_uri",
     "failed",
@@ -288,8 +289,8 @@ SUS_OPENREDIRECT = [
     "origin",
     "redirect_to",
     "next",
-]
-SUS_SQLI = [
+])
+SUS_SQLI = frozenset([
     "process",
     "string",
     "id",
@@ -332,8 +333,8 @@ SUS_SQLI = [
     "report",
     "q",
     "sql",
-]
-SUS_SSRF = [
+])
+SUS_SSRF = frozenset([
     "sector_identifier_uri",
     "request_uris",
     "logo_uri",
@@ -378,8 +379,8 @@ SUS_SSRF = [
     "redirect",
     "target",
     "referer",
-]
-SUS_SSTI = [
+])
+SUS_SSTI = frozenset([
     "preview",
     "activity",
     "id",
@@ -388,8 +389,8 @@ SUS_SSTI = [
     "view",
     "template",
     "redirect",
-]
-SUS_XSS = [
+])
+SUS_XSS = frozenset([
     "path",
     "admin",
     "class",
@@ -478,10 +479,10 @@ SUS_XSS = [
     "wysiwyg",
     "widget",
     "msg",
-]
+])
 
 # Additional Sus Parameters
-SUS_MASSASSIGNMENT = [
+SUS_MASSASSIGNMENT = frozenset([
     "user",
     "profile",
     "role",
@@ -494,7 +495,7 @@ SUS_MASSASSIGNMENT = [
     "product",
     "form_fields",
     "request",
-]
+])
 
 # The number of seconds to wait for a regex query to complete when searching for links
 DEFAULT_REGEX_TIMEOUT = 30
@@ -590,7 +591,7 @@ IS_RUNNING = False
 DEFAULT_WARNING_NO_CONTENT = "\n\nMaybe scope isn't set?\nIt needs to be set to call GAP from the Site Map tree.\nIgnore this if there are results for other modes."
 
 
-class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
+class BurpExtender(IBurpExtender, IContextMenuFactory, ITab, IExtensionStateListener):
     def registerExtenderCallbacks(self, callbacks):
         """
         Registers the extension and initializes
@@ -638,6 +639,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.parentTabbedPane = None
         self.tabDefaultColor = None
         self.linkPrefixColor = None
+        self.outputMouseListeners = []
+        callbacks.registerExtensionStateListener(self)
 
         # Take the LINK_REGEX_FILES values and build a string of any values over 4 characters or has a number in it
         # This is used in the 4th capturing group Link Finding regex
@@ -654,11 +657,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
 
         # Compile the link regex
         self.REGEX_LINKS = re.compile(
-            r"(?:^|\"|'|\\n|\\r|\n|\r|\s)(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:#?\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}"
+            r"(?:(?<=^)|(?<=\"|'|\n|\r|\s))(((?:[a-zA-Z]{1,10}:\/\/|\/\/)([^\"'\/\s]{1,255}\.[a-zA-Z]{2,24}|localhost)[^\"'\n\s]{0,255})|((?:#?\/|\.\.\/|\.\/)[^\"'><,;| *()(%%$^\/\\\[\]][^\"'><,;|()\s]{1,255})|([a-zA-Z0-9_\-\/]{1,}\/[a-zA-Z0-9_\-\/\.]{1,255}\.(?:[a-zA-Z]{1,4}"
             + self.LINK_REGEX_NONSTANDARD_FILES
             + ")(?:[\?|\/][^\"|']{0,1000}|))|([a-zA-Z0-9_\-\.]{1,255}\.(?:"
             + LINK_REGEX_FILES
-            + ")(?:\?[^\"|^']{0,255}|)))(?:\"|'|\\n|\\r|\n|\r|\s|$)|(?<=^Disallow:\s)[^\$\n]{0,500}|(?<=^Allow:\s)[^\$\n]{0,500}|(?<= Domain\=)[^\";']{0,500}|(?<=\<)https?:\/\/[^>\n]{0,1000}|(\"|')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]{0,500})(\"|')|(?<=\<Key\>)[^\<]{1,500}\<\/Key\>",
+            + ")(?:\?[^\"|^']{0,255}|)))(?=$|\"|'|\n|\r|\s)|(?<=^Disallow:\s)[^\$\n]{0,500}|(?<=^Allow:\s)[^\$\n]{0,500}|(?<= Domain\=)[^\";']{0,500}|(?<=\<)https?:\/\/[^>\n]{0,1000}|(\"|\')([A-Za-z0-9_-]+\/)+[A-Za-z0-9_-]+(\.[A-Za-z0-9]{2,}|\/?(\?|\#)[A-Za-z0-9_\-&=\[\]]{0,500})(\"|\')|(?<=\<Key\>)[^\<]{1,500}\<\/Key\>",
             re.IGNORECASE,
         )
 
@@ -781,10 +784,9 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         # Regex for sus params
         self.REGEX_SUSPARAM = re.compile("^[A-Za-z0-9_-]{1,500}$")
 
-        # Make the Stop Word list and make all lower case
+        # Make the Stop Word set and make all lower case
         try:
-            self.lstStopWords = DEFAULT_STOP_WORDS.split(",")
-            self.lstStopWords = list(map(str.lower, self.lstStopWords))
+            self.lstStopWords = set(word.lower() for word in DEFAULT_STOP_WORDS.split(","))
         except Exception as e:
             self._stderr.println("registerExtenderCallbacks 1")
             self._stderr.println(e)
@@ -1462,28 +1464,34 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
         self.restoreSavedConfig()
 
         # After settings have been restored, we can set the mouse liseteners
-        self.outLinkList.addMouseListener(
-            OutputMouseListener(
-                self.outLinkList,
-                "Links",
-                self._callbacks,
-                self._helpers,
-                self.cbShowLinkOrigin,
-                self.cbInScopeOnly,
-            )
+        self.outLinkListListener = OutputMouseListener(
+            self.outLinkList,
+            "Links",
+            self._callbacks,
+            self._helpers,
+            self.cbShowLinkOrigin,
+            self.cbInScopeOnly,
         )
-        self.outParamList.addMouseListener(
-            OutputMouseListener(self.outParamList, "Param")
+        self.outLinkList.addMouseListener(self.outLinkListListener)
+        self.outputMouseListeners.append(self.outLinkListListener)
+
+        self.outParamListListener = OutputMouseListener(self.outParamList, "Param")
+        self.outParamList.addMouseListener(self.outParamListListener)
+        self.outputMouseListeners.append(self.outParamListListener)
+
+        self.outParamSusListener = OutputMouseListener(self.outParamSus, "Param")
+        self.outParamSus.addMouseListener(self.outParamSusListener)
+        self.outputMouseListeners.append(self.outParamSusListener)
+
+        self.outParamQueryListener = OutputMouseListener(
+            self.outParamQuery, "ParamQuery"
         )
-        self.outParamSus.addMouseListener(
-            OutputMouseListener(self.outParamSus, "Param")
-        )
-        self.outParamQuery.addMouseListener(
-            OutputMouseListener(self.outParamQuery, "ParamQuery")
-        )
-        self.outWordList.addMouseListener(
-            OutputMouseListener(self.outWordList, "Words")
-        )
+        self.outParamQuery.addMouseListener(self.outParamQueryListener)
+        self.outputMouseListeners.append(self.outParamQueryListener)
+
+        self.outWordListListener = OutputMouseListener(self.outWordList, "Words")
+        self.outWordList.addMouseListener(self.outWordListListener)
+        self.outputMouseListeners.append(self.outWordListListener)
 
         # Determine whether to "show context help"
         self.setContextHelp(self.cbToolTips.isSelected())
@@ -6210,6 +6218,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab):
             typesMin = typesMin + "MASS-ASSIGN, "
         return types.rstrip(", "), typesMin.rstrip(", ")
 
+    def extensionUnloaded(self):
+        """
+        Called when the extension is unloaded. Shutdown any executors.
+        """
+        try:
+            for listener in self.outputMouseListeners:
+                listener.shutdown()
+        except Exception as e:
+            self._stderr.println("BurpExtender.extensionUnloaded: " + str(e))
+
     def checkSusParams(self, param, confidence, context):
         """
         Create a Burp Issue for a suspect paramater, and also write to the extension output
@@ -6870,6 +6888,15 @@ class OutputMouseListener(MouseListener):
 
         # Dispose the popup menu after "Copy" is selected
         event.getSource().getParent().setVisible(False)
+
+    def shutdown(self):
+        """
+        Shutdown the executor
+        """
+        try:
+            self.executor.shutdownNow()
+        except:
+            pass
 
     def mousePressed(self, event):
         pass
