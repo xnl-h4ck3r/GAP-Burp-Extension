@@ -2,3 +2,4 @@ beautifulsoup4
 html5lib
 urllib3
 tldextract==2.2.3
+requests-file==1.5.1
