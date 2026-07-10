@@ -6230,7 +6230,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, ITab, IExtensionStateList
 
     def checkSusParams(self, param, confidence, context):
         """
-        Create a Burp Issue for a suspect paramater, and also write to the extension output
+        Create a Burp Issue for a suspect parameter, and also write to the extension output
         """
         self.txtDebugDetail.text = "checkSusParams: " + param
         try:
@@ -6744,7 +6744,7 @@ class OutputMouseListener(MouseListener):
 
         # Create a "Copy" menu item
         if self.identifier == "Param":
-            menu = "Copy paramaters"
+            menu = "Copy parameters"
         elif self.identifier == "ParamQuery":
             menu = "Copy query string"
         elif self.identifier == "Links":
